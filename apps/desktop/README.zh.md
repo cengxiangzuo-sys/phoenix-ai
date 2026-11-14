@@ -188,9 +188,11 @@ macOS 和 Linux 从图形界面启动的程序只继承会话管理器提供的�
 开发环境应用菜单提供“刷新页面”（macOS 为 Cmd+R，其他平台为 Ctrl+R）和“重启应用与 Host”。重启会等待 Host 关闭，再重新启动 Electron 和新的 Host；这两项操作都不会重新构建源码。
 
 在 macOS 上，Phoenix 开发 profile 会生成 `Phoenix AI Dev.app`，使用独立的 Bundle ID、数据目录，以及从 `resources/phoenix-icon.png` 生成的图标。它可以与已安装的 DeepSeek Harness 同时运行；重新构建工作区即可更新界面，无需制作安装包。
+开发版应用包以 macOS 原生可执行文件启动内部脚本，因此从 Finder 打开应用即可进入工作台。
 独立登录窗口使用 Phoenix 图案和配色，账号与 API Key 操作仍沿用原生流程。
 
 Phoenix UI 验证（2026-11-14）：`build:artifacts` 的 8 项门禁全部通过，`build:check` 的 2 项门禁全部通过，55 项相关测试通过，1,211 组文档翻译配对通过。在实际 macOS 开发版应用中，使用隔离的空白资料检查了欢迎页和 API Key 页面；恢复常用资料后检查了首页、插件页、设置页的浅色与深色外观、聊天输入和 820 px 窄窗口。欢迎页图片起初被窗口 CSP 拦截，改用同源资源后完成了 GUI 复测。本次 UI 验证没有发送模型请求。
+此外，应用包入口改用原生可执行文件后，已重新验证 Finder 启动，正常打开了工作台窗口。
 
 `dev:desktop` 会构建当前 Host、客户端 bundle、Web 前端和 Electron 壳，把已构建的 CLI 包、私有 Desktop Host 包及其 workspace 依赖投影为一次性桌面 npm 项目，然后直接启动 Electron；这条路径不从 npm 解析 dsh：
 

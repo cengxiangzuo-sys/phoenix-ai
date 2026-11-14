@@ -19,6 +19,11 @@ export interface DevelopmentAppOptions {
 
 function quote(value: string): string { return `'${value.replaceAll("'", "'\\''")}'` }
 
+function prepareNativeLauncher(executable: string, script: string): void {
+  const source = `#include <stdio.h>\n#include <stdlib.h>\n#include <unistd.h>\nint main(int argc, char **argv) {\n  char **args = calloc((size_t)argc + 2, sizeof(char *));\n  if (args == NULL) return 1;\n  args[0] = "/bin/sh";\n  args[1] = ${JSON.stringify(script)};\n  for (int i = 1; i < argc; i++) args[i + 1] = argv[i];\n  execv("/bin/sh", args);\n  perror("desktop development launcher");\n  return 1;\n}\n`
+  execFileSync('/usr/bin/cc', ['-x', 'c', '-', '-o', executable], { input: source, stdio: ['pipe', 'pipe', 'pipe'] })
+}
+
 function preparePhoenixIcon(bundle: string, source: string): void {
   const iconset = join(bundle, 'Contents', 'Resources', 'Phoenix.iconset')
   execFileSync('/bin/mkdir', ['-p', iconset])
@@ -53,7 +58,7 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
   const executable = join(bundle, 'Contents', 'MacOS', executableName)
   const stamp = join(bundle, 'Contents', 'Resources', 'dsh-development.json')
   const launcher = developmentLauncher(options, bundle)
-  const identity = JSON.stringify({ ...options, launcher, plist: readFileSync(join(source, 'Contents', 'Info.plist'), 'utf8'),
+  const identity = JSON.stringify({ ...options, launcher, launcherKind: phoenix ? 'native-v1' : 'shell', plist: readFileSync(join(source, 'Contents', 'Info.plist'), 'utf8'),
     icon: phoenix ? createHash('sha256').update(readFileSync(iconSource)).digest('hex') : undefined })
   if (!existsSync(stamp) || readFileSync(stamp, 'utf8') !== identity) {
     rmSync(bundle, { recursive: true, force: true })
@@ -70,7 +75,13 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
     for (const [key, value] of Object.entries(values)) {
       execFileSync('/usr/bin/plutil', ['-replace', key, '-json', JSON.stringify(value), plist])
     }
-    writeFileSync(executable, launcher, { mode: 0o755 })
+    if (phoenix) {
+      const script = `${executable}.sh`
+      writeFileSync(script, launcher, { mode: 0o755 })
+      prepareNativeLauncher(executable, script)
+    } else {
+      writeFileSync(executable, launcher, { mode: 0o755 })
+    }
     if (phoenix) preparePhoenixIcon(bundle, iconSource)
     writeFileSync(stamp, identity, { mode: 0o600 })
     execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', bundle], { stdio: 'pipe' })
@@ -90,7 +101,10 @@ export function developmentLauncher(options: DevelopmentAppOptions, bundle: stri
     DSH_HOME: options.home,
     DSH_DESKTOP_DSH_DIR: join(options.directory, 'project'),
     ...(process.env.DSH_CLIENT_BRAND === 'phoenix'
-      ? { DSH_DESKTOP_PRIMARY_RUNTIME_DIR: join(options.directory, 'runtime', 'primary-runtime') }
+      ? {
+        DSH_DESKTOP_PRIMARY_RUNTIME_DIR: join(options.directory, 'runtime', 'primary-runtime'),
+        DSH_DESKTOP_DIAGNOSTIC_FILE: join(options.directory, 'startup-error.txt'),
+      }
       : {}),
     DSH_DESKTOP_DEV_APP: '1',
     DSH_DESKTOP_HOST_INSPECT_PORT: String(options.hostPort),

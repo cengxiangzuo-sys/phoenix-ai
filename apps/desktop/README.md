@@ -188,9 +188,11 @@ macOS and Linux GUI launches inherit only the session manager's environment, wit
 The development application menu offers Reload Page (Cmd+R on macOS, Ctrl+R elsewhere) and Restart App and Host. Restart waits for Host shutdown before relaunching Electron and starting a new Host; neither action rebuilds source files.
 
 On macOS, the Phoenix development profile produces `Phoenix AI Dev.app` with a private Bundle ID, data directory, and icon derived from `resources/phoenix-icon.png`. It can run beside the installed DeepSeek Harness app; rebuilding the workspace updates its UI without creating an installer.
+The development bundle uses a native macOS executable to launch its shell script so opening the app from Finder reaches the workspace.
 Its standalone sign-in window uses Phoenix artwork and colors while retaining the same account and API-key operations.
 
 Phoenix UI verification (2026-11-14): `build:artifacts` passed 8/8 gates, `build:check` passed 2/2, 55 focused tests passed, and translation pairing passed for all 1,211 pairs. In the actual macOS development app, the welcome and API-key screens were checked with an isolated empty profile; the restored regular profile was checked on the home, plugin, and settings screens in both appearances, with composer input and an 820 px narrow window. The welcome art initially failed the window CSP and was changed to same-origin assets before the GUI recheck. No model request was sent during this UI verification.
+Finder launch was also rechecked after replacing the bundle's script entry with a native executable; the normal workspace window opened.
 
 `dev:desktop` builds the current Host, client bundles, Web frontend, and Electron shell, projects the built CLI and private Desktop Host packages with their workspace dependencies into a disposable desktop npm project, and launches Electron without resolving dsh from npm:
 
