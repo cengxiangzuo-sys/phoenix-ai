@@ -5,6 +5,7 @@ import { cleanup, render } from '@testing-library/react'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply, inject } from '../src/client/index.ts'
 import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
+import { PHOENIX_THEME_TOKENS } from '../src/client/PhoenixTheme.ts'
 import { apply as hostApply } from '../src/index.ts'
 
 afterEach(() => {
@@ -62,6 +63,28 @@ describe('official browser-brand plugin', () => {
     expect(subject.slots.entries('sidebar.brand.mark')).toHaveLength(1)
     expect(subject.slots.entries('sidebar.brand.name')).toHaveLength(1)
     expect(subject.slots.entries('conversation.hero.frame')).toHaveLength(0)
+  })
+
+  it('applies Phoenix colors and defaults only an untouched system preference to dark', async () => {
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    localStorage.clear()
+    const subject = await bench()
+    const overrideTokens = vi.fn(() => () => {})
+    const setTheme = vi.fn()
+    subject.ctx.provide('theme', { overrideTokens, setTheme, getTheme: () => ({ preference: 'system' }) } as never)
+    const fiber = subject.ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    expect(overrideTokens).toHaveBeenCalledWith('phoenix-brand', PHOENIX_THEME_TOKENS)
+    expect(setTheme).toHaveBeenCalledWith('dark')
+    expect(document.body.hasAttribute('data-phoenix-brand')).toBe(true)
+    await fiber.dispose()
+    expect(document.body.hasAttribute('data-phoenix-brand')).toBe(false)
+
+    const next = await bench()
+    const nextSetTheme = vi.fn()
+    next.ctx.provide('theme', { overrideTokens, setTheme: nextSetTheme, getTheme: () => ({ preference: 'system' }) } as never)
+    await next.ctx.plugin({ inject: [...inject], apply }).await()
+    expect(nextSetTheme).not.toHaveBeenCalled()
   })
 
   it('fills declarations before or after apply and removes every occupant on teardown', async () => {

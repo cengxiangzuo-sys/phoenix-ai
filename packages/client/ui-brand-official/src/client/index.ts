@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { PixelWhale } from './home-whale/PixelWhale.tsx'
 import { OfficialBrandMark, OfficialBrandName } from './Brand.tsx'
 import { PhoenixBrandMark, PhoenixBrandName } from './PhoenixBrand.tsx'
+import { installPhoenixTheme } from './PhoenixTheme.ts'
 
 /** Required service: the UI slot registry. */
 export const inject = ['slots']
@@ -16,6 +17,7 @@ export const inject = ['slots']
  */
 export function apply(ctx: ClientContext): void {
   if (process.env.DSH_CLIENT_BRAND === 'phoenix') {
+    installPhoenixTheme(ctx)
     ctx.slots.inject('sidebar.brand.mark', () =>
       ctx.slots.inject('sidebar.brand.name', function* () {
         yield ctx.slots.register({ name: 'sidebar.brand.mark' }, PhoenixBrandMark)

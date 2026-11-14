@@ -73,7 +73,10 @@ export default defineConfig([
         }],
         root: fileURLToPath(new URL('.', import.meta.url)),
         esbuild: { jsx: 'automatic' },
-        define: { 'process.env.NODE_ENV': JSON.stringify('production') },
+        define: {
+          'process.env.NODE_ENV': JSON.stringify('production'),
+          'process.env.DSH_CLIENT_BRAND': JSON.stringify(process.env.DSH_CLIENT_BRAND ?? ''),
+        },
         build: {
           outDir: 'lib/welcome',
           emptyOutDir: true,

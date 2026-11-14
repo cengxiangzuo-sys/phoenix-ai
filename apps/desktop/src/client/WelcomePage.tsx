@@ -16,6 +16,7 @@ type Page = 'entry' | 'key' | 'account'
  */
 export function Welcome({ api }: { api: WelcomeApi }) {
   const { messages: m } = api
+  const phoenix = process.env.DSH_CLIENT_BRAND === 'phoenix'
   const [expiryNotice, setExpiryNotice] = useState(false)
   const [page, setPage] = useState<Page>('entry')
   const pageRef = useRef<Page>('entry')
@@ -52,7 +53,7 @@ export function Welcome({ api }: { api: WelcomeApi }) {
   useEffect(() => {
     mounted.current = true
     document.documentElement.lang = api.id
-    document.title = m.welcomeTitle
+    document.title = phoenix ? 'Phoenix AI' : m.welcomeTitle
     const takeNotice = (): void => {
       void api.takeNotice().then((notice) => {
         if (mounted.current && notice === 'session-expired') setExpiryNotice(true)
@@ -67,7 +68,7 @@ export function Welcome({ api }: { api: WelcomeApi }) {
       showAccount(state)
     })
     return () => { mounted.current = false; stop() }
-  }, [api, m.welcomeTitle])
+  }, [api, m.welcomeTitle, phoenix])
 
   useEffect(() => {
     if (page === 'entry' && visiblePage.current !== 'entry') void api.analytics?.('auth_page_view', {})
@@ -175,13 +176,16 @@ export function Welcome({ api }: { api: WelcomeApi }) {
     {expiryNotice && <Toast text={m.welcomeSessionExpired} onDone={() => { setExpiryNotice(false) }} />}
     <div className="titlebar" aria-hidden="true" />
     <main className="welcome" aria-labelledby={heading}>
-      <img className="brand" src="assets/welcome-brand.svg" alt={m.welcomeBrand} width="472" height="40" />
+      {phoenix
+        ? <div className="phoenix-brand"><img src="assets/phoenix-icon.svg" alt="" width="44" height="44" /><span>Phoenix <em>AI</em></span></div>
+        : <img className="brand" src="assets/welcome-brand.svg" alt={m.welcomeBrand} width="472" height="40" />}
+      {phoenix && <img className="phoenix-art" src="assets/phoenix-dragon.png" alt="" hidden={page !== 'entry'} />}
       <div id="tagline" className="tagline" hidden={page !== 'entry'}>
-        <h1 id="welcome-heading"><span>{m.welcomeTaglineBefore}</span><em>{m.welcomeTaglineBrand}</em><span>{m.welcomeTaglineAfter}</span></h1>
-        <p id="welcome-description">{m.welcomeDescription}</p>
+        <h1 id="welcome-heading"><span>{phoenix ? api.id === 'zh-CN' ? '欢迎使用 ' : 'Welcome to ' : m.welcomeTaglineBefore}</span><em>{phoenix ? 'Phoenix AI' : m.welcomeTaglineBrand}</em><span>{phoenix ? '' : m.welcomeTaglineAfter}</span></h1>
+        <p id="welcome-description">{phoenix ? api.id === 'zh-CN' ? '你的 AI 工作伙伴' : 'Your AI work partner' : m.welcomeDescription}</p>
       </div>
       <form id="key-form" className="key-form" hidden={page !== 'key'} noValidate onSubmit={(event) => { void saveKey(event) }} aria-busy={busy}>
-        <header className="key-heading"><h1 id="key-title">{m.welcomeKeyTitle}</h1><p id="key-description">{m.welcomeKeyDescription}</p></header>
+        <header className="key-heading"><h1 id="key-title">{m.welcomeKeyTitle}</h1><p id="key-description">{phoenix ? m.welcomeKeyDescription.replace('Harness', 'Phoenix AI') : m.welcomeKeyDescription}</p></header>
         <div className="key-field">
           <label className="visually-hidden" htmlFor="key-input">{m.welcomeKeyPlaceholder}</label>
           <input ref={input} id="key-input" type="password" autoComplete="new-password" autoCapitalize="off" spellCheck={false} required

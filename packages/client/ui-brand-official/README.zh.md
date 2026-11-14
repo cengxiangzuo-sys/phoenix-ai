@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 选择 profile
 
-`DSH_CLIENT_BUILD_PROFILE` 决定是否显示官方侧栏标志和名称。通过 `DSH_CLIENT_BRAND=phoenix` 选择的 Phoenix 本地构建则显示 Phoenix 侧栏标志和名称，并省略鲸鱼背景。其他非官方构建保留外壳回退。插件在所有 profile 中照常加载并通过校验；展示注册取决于构建身份。
+`DSH_CLIENT_BUILD_PROFILE` 决定是否显示官方侧栏标志和名称。通过 `DSH_CLIENT_BRAND=phoenix` 选择的 Phoenix 本地构建则显示 Phoenix 侧栏标志和名称、省略鲸鱼背景，并通过原生主题服务应用支持浅色和深色的橙色与深褐色配色。首次启动且外观偏好仍为 `system` 时默认深色；此后用户可自行切换外观。其他非官方构建保留外壳回退。插件在所有 profile 中照常加载并通过校验；展示注册取决于构建身份。
 
 ### 首页反馈
 

@@ -29,7 +29,7 @@ The shipped Web and Desktop compositions already mount this plugin. Home feedbac
 
 ### Choosing the profile
 
-`DSH_CLIENT_BUILD_PROFILE` selects the official sidebar mark and name. A Phoenix local build selected by `DSH_CLIENT_BRAND=phoenix` instead renders the Phoenix sidebar mark and name and omits the whale background. Other nonofficial builds leave the shell fallbacks in place. The plugin loads and validates in every profile; its presentation registrations depend on the selected build identity.
+`DSH_CLIENT_BUILD_PROFILE` selects the official sidebar mark and name. A Phoenix local build selected by `DSH_CLIENT_BRAND=phoenix` instead renders the Phoenix sidebar mark and name, omits the whale background, and installs a light/dark orange and charcoal palette through the native theme registry. A first Phoenix launch defaults to dark when the preference is still `system`; later appearance choices remain under the user's control. Other nonofficial builds leave the shell fallbacks in place. The plugin loads and validates in every profile; its presentation registrations depend on the selected build identity.
 
 ### Home feedback
 

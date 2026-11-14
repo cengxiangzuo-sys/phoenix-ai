@@ -14,6 +14,7 @@ declare global {
 
 const container = document.getElementById('root')
 if (container === null) throw new Error('desktop welcome: missing React root')
+if (process.env.DSH_CLIENT_BRAND === 'phoenix') document.body.dataset.phoenixWelcome = ''
 const root = createRoot(container)
 flushSync(() => { root.render(<Welcome api={window.dshWelcome} />) })
 window.addEventListener('pagehide', () => { root.unmount() }, { once: true })

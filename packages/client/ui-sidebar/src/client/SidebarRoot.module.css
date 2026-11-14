@@ -463,6 +463,18 @@
   background: rgb(255 255 255 / 0.15);
 }
 
+:global([data-platform='darwin']) :global(body[data-phoenix-brand]) :where(.root:not([role='dialog'])) .newSession {
+  background: linear-gradient(110deg, #ff7900, #ff9d0a);
+  border-color: rgb(255 189 108 / 0.38);
+  color: #fff;
+}
+
+@media (hover: hover) {
+  :global([data-platform='darwin']) :global(body[data-phoenix-brand]) :where(.root:not([role='dialog'])) .newSession:hover {
+    background: linear-gradient(110deg, #ed6900, #ff8e00);
+  }
+}
+
 @media (hover: hover) {
   :global([data-platform='darwin']) :global([data-ds-dark-theme]) :where(.root:not([role='dialog'])) .newSession:hover {
     background: rgb(255 255 255 / 0.2);

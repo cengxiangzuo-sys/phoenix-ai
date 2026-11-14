@@ -19,6 +19,26 @@ export interface DevelopmentAppOptions {
 
 function quote(value: string): string { return `'${value.replaceAll("'", "'\\''")}'` }
 
+function preparePhoenixIcon(bundle: string, source: string): void {
+  const iconset = join(bundle, 'Contents', 'Resources', 'Phoenix.iconset')
+  execFileSync('/bin/mkdir', ['-p', iconset])
+  try {
+    const sizes: readonly (readonly [number, string])[] = [
+      [16, 'icon_16x16.png'], [32, 'icon_16x16@2x.png'],
+      [32, 'icon_32x32.png'], [64, 'icon_32x32@2x.png'],
+      [128, 'icon_128x128.png'], [256, 'icon_128x128@2x.png'],
+      [256, 'icon_256x256.png'], [512, 'icon_256x256@2x.png'],
+      [512, 'icon_512x512.png'], [1024, 'icon_512x512@2x.png'],
+    ]
+    for (const [size, name] of sizes) {
+      execFileSync('/usr/bin/sips', ['-z', String(size), String(size), source, '--out', join(iconset, name)], { stdio: 'pipe' })
+    }
+    execFileSync('/usr/bin/iconutil', ['-c', 'icns', iconset, '-o', join(bundle, 'Contents', 'Resources', 'phoenix.icns')])
+  } finally {
+    rmSync(iconset, { recursive: true, force: true })
+  }
+}
+
 /**
  * Prepare and register a disposable .app without changing the installed Electron package.
  * @param options - Current workspace, Electron binary, and private development locations.
@@ -27,12 +47,14 @@ function quote(value: string): string { return `'${value.replaceAll("'", "'\\''"
 export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
   const source = dirname(dirname(dirname(options.electron)))
   const phoenix = process.env.DSH_CLIENT_BRAND === 'phoenix'
+  const iconSource = join(options.appRoot, 'resources', 'phoenix-icon.png')
   const bundle = join(options.directory, phoenix ? 'Phoenix AI Dev.app' : 'Harness Dev.app')
   const executableName = phoenix ? 'PhoenixAIDev' : 'HarnessDev'
   const executable = join(bundle, 'Contents', 'MacOS', executableName)
   const stamp = join(bundle, 'Contents', 'Resources', 'dsh-development.json')
   const launcher = developmentLauncher(options, bundle)
-  const identity = JSON.stringify({ ...options, launcher, plist: readFileSync(join(source, 'Contents', 'Info.plist'), 'utf8') })
+  const identity = JSON.stringify({ ...options, launcher, plist: readFileSync(join(source, 'Contents', 'Info.plist'), 'utf8'),
+    icon: phoenix ? createHash('sha256').update(readFileSync(iconSource)).digest('hex') : undefined })
   if (!existsSync(stamp) || readFileSync(stamp, 'utf8') !== identity) {
     rmSync(bundle, { recursive: true, force: true })
     execFileSync('/usr/bin/ditto', [source, bundle])
@@ -42,12 +64,14 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
       CFBundleName: phoenix ? 'Phoenix AI Dev' : 'Harness Dev',
       CFBundleDisplayName: phoenix ? 'Phoenix AI Dev' : 'Harness Dev',
       CFBundleExecutable: executableName,
+      ...(phoenix ? { CFBundleIconFile: 'phoenix.icns' } : {}),
       CFBundleURLTypes: [{ CFBundleURLName: phoenix ? 'Phoenix AI' : 'DeepSeek Harness', CFBundleURLSchemes: [phoenix ? 'phoenix-ai' : 'dsh'], CFBundleTypeRole: 'Viewer' }],
     }
     for (const [key, value] of Object.entries(values)) {
       execFileSync('/usr/bin/plutil', ['-replace', key, '-json', JSON.stringify(value), plist])
     }
     writeFileSync(executable, launcher, { mode: 0o755 })
+    if (phoenix) preparePhoenixIcon(bundle, iconSource)
     writeFileSync(stamp, identity, { mode: 0o600 })
     execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', bundle], { stdio: 'pipe' })
   }

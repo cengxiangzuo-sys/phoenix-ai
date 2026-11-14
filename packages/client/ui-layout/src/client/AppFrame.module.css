@@ -151,6 +151,19 @@
     color-mix(in srgb, var(--dsw-specific-sidebar-fill) 50%, transparent);
 }
 
+/* Phoenix keeps the native translucent sidebar while replacing the official blue wash. */
+:global([data-platform='darwin']) :global(body[data-phoenix-brand]) .frame:not([data-sidebar-drawer]) .sidebarCol {
+  background:
+    linear-gradient(to bottom, rgb(255 146 42 / 0.12), transparent 38%, rgb(255 115 18 / 0.06)),
+    color-mix(in srgb, var(--dsw-specific-sidebar-fill) 62%, transparent);
+}
+
+:global([data-platform='darwin']) :global(body[data-phoenix-brand][data-ds-dark-theme]) .frame:not([data-sidebar-drawer]) .sidebarCol {
+  background:
+    linear-gradient(to bottom, rgb(255 129 21 / 0.11), transparent 38%, rgb(255 129 21 / 0.04)),
+    color-mix(in srgb, var(--dsw-specific-sidebar-fill) 72%, transparent);
+}
+
 /* macOS Reduce Transparency: the OS flattens the window's vibrancy layer to a
    solid grey, so the thin tint and washes read washed-out over it. Replace
    them with a 90%-opaque fill of the same token in both themes (the dark
@@ -158,6 +171,11 @@
 @media (prefers-reduced-transparency: reduce) {
   :global([data-platform='darwin']) .frame:not([data-sidebar-drawer]) .sidebarCol,
   :global([data-platform='darwin']) :global([data-ds-dark-theme]) .frame:not([data-sidebar-drawer]) .sidebarCol {
+    background: color-mix(in srgb, var(--dsw-specific-sidebar-fill) 90%, transparent);
+  }
+
+  :global([data-platform='darwin']) :global(body[data-phoenix-brand]) .frame:not([data-sidebar-drawer]) .sidebarCol,
+  :global([data-platform='darwin']) :global(body[data-phoenix-brand][data-ds-dark-theme]) .frame:not([data-sidebar-drawer]) .sidebarCol {
     background: color-mix(in srgb, var(--dsw-specific-sidebar-fill) 90%, transparent);
   }
 }

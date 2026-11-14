@@ -9,7 +9,7 @@ import type { AccountView } from '@deepseek-ai/dsh-deepseek-account/types'
 import type { WelcomeSaveResult, WelcomeNotice } from '../src/welcome-api.ts'
 
 const html = readFileSync(join(import.meta.dirname, '../renderer/welcome.html'), 'utf8')
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.unstubAllEnvs() })
 
 function mount(language = 'zh-CN', takeNotice = vi.fn<() => Promise<WelcomeNotice | undefined>>().mockResolvedValue(undefined)) {
   cleanup()
@@ -48,6 +48,17 @@ function mount(language = 'zh-CN', takeNotice = vi.fn<() => Promise<WelcomeNotic
 }
 
 describe('desktop welcome presentation', () => {
+  it('shows Phoenix artwork and copy only in the Phoenix build', () => {
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    const view = mount('zh-CN')
+    expect(view.document.title).toBe('Phoenix AI')
+    expect(view.document.querySelector('.phoenix-brand')?.textContent).toBe('Phoenix AI')
+    expect(view.document.querySelector('.phoenix-brand img')?.getAttribute('src')).toBe('assets/phoenix-icon.svg')
+    expect(view.document.getElementById('welcome-heading')?.textContent).toBe('欢迎使用 Phoenix AI')
+    expect(view.document.querySelector('.phoenix-art')?.getAttribute('src')).toBe('assets/phoenix-dragon.png')
+    expect(view.document.querySelector('.brand')).toBeNull()
+  })
+
   it.each(['zh-CN', 'en'])('renders the %s entry and API-key step', async (language) => {
     const view = mount(language)
     expect(view.document.documentElement.lang).toBe(language)
