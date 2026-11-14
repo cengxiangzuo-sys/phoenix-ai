@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 选择 profile
 
-`DSH_CLIENT_BUILD_PROFILE` 决定渲染哪个品牌。`official` 构建显示官方侧栏标志和名称；任何其他取值都让外壳回退——鱼形标志与本地构建标签——保持原样。会话首屏无论 profile 如何都显示来自 `dsh-client-ui-conversation` 的动画首屏鱼，因为这个回退本身就是官方标志。两种情况下插件都会照常加载并通过校验；只有侧栏图形注册受 profile 门控；各构建 profile 共用首页背景。
+`DSH_CLIENT_BUILD_PROFILE` 决定是否显示官方侧栏标志和名称。通过 `DSH_CLIENT_BRAND=phoenix` 选择的 Phoenix 本地构建则显示 Phoenix 侧栏标志和名称，并省略鲸鱼背景。其他非官方构建保留外壳回退。插件在所有 profile 中照常加载并通过校验；展示注册取决于构建身份。
 
 ### 首页反馈
 
@@ -41,7 +41,7 @@ kind: "package-reference"
 
 ### 替换品牌
 
-自有身份的部署不组合本包，而是组合另一个占据侧栏 slot 和 `conversation.hero.frame` 层——以及本包留给回退的首屏标志 slot——的包。占据 slot 是唯一的组合路径；品牌图形身份不可配置。
+自有身份的部署可以不组合本包，而是组合另一个占据侧栏 slot 和 `conversation.hero.frame` 层——以及本包留给回退的首屏标志 slot——的包。本地 Phoenix 构建在本包中通过 `DSH_CLIENT_BRAND` 选择；其他部署使用 slot 组合。
 
 -----
 

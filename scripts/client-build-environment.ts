@@ -206,6 +206,9 @@ export function resolveClientBuildEnvironment(
       DSH_CLIENT_VERSION: version,
       ...(profile === 'official' ? OFFICIAL_CLIENT_BUILD_ENVIRONMENT : {
         DSH_CLIENT_BUILD_PROFILE: 'local',
+        ...(environment.DSH_CLIENT_BRAND === 'phoenix'
+          ? { DSH_CLIENT_BRAND: 'phoenix', DSH_CLIENT_TITLE: environment.DSH_CLIENT_TITLE ?? 'Phoenix AI' }
+          : {}),
         ...(environment.DSH_CLIENT_GIT_DIRTY === 'true' ? { DSH_CLIENT_GIT_DIRTY: 'true' } : {}),
       }),
     }

@@ -55,6 +55,15 @@ describe('official browser-brand plugin', () => {
     expect(subject.slots.entries('conversation.hero.frame')).toHaveLength(1)
   })
 
+  it('selects Phoenix branding without mounting the official whale', async () => {
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    const subject = await bench()
+    await subject.ctx.plugin({ inject: [...inject], apply }).await()
+    expect(subject.slots.entries('sidebar.brand.mark')).toHaveLength(1)
+    expect(subject.slots.entries('sidebar.brand.name')).toHaveLength(1)
+    expect(subject.slots.entries('conversation.hero.frame')).toHaveLength(0)
+  })
+
   it('fills declarations before or after apply and removes every occupant on teardown', async () => {
     vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'official')
     const before = await bench()

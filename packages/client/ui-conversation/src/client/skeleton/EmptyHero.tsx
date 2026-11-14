@@ -9,6 +9,7 @@ import {
 import { workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
 import type { ConversationContentProps } from '../contract/slots.ts'
 import css from './HeroShell.module.css'
+import phoenixDragon from '../assets/phoenix-dragon.png'
 
 /** The owner's locale seat type, passed to hero chrome as a plain prop. */
 type HeroTranslate = ConversationContentProps['t']
@@ -131,6 +132,24 @@ function HeroFish({ hovering }: { hovering: boolean }) {
  */
 export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
   const [hovering, setHovering] = useState(false)
+  if (process.env.DSH_CLIENT_BRAND === 'phoenix') {
+    return (
+      <div className={css.phoenixRoot}>
+        <div className={css.phoenixCard}>
+          <div className={css.phoenixCopy}>
+            <p className={css.phoenixGreeting}>{t('hero.phoenixGreeting')}</p>
+            <h1 className={css.phoenixHeadline}>{t('hero.phoenixHeadlineLead')} <span>Phoenix AI</span><br />{t('hero.phoenixHeadlineEnd')}</h1>
+            <p className={css.phoenixDescription}>{t('hero.phoenixDescription')}</p>
+            <button className={css.phoenixStart} type="button" onClick={(event) => {
+              event.currentTarget.closest('[data-conversation-content]')?.querySelector<HTMLElement>('[data-composer-input]')?.focus()
+            }}>{t('hero.phoenixStart')} <span aria-hidden="true">→</span></button>
+          </div>
+          <img className={css.phoenixDragon} src={phoenixDragon} alt="" aria-hidden="true" />
+        </div>
+        {children}
+      </div>
+    )
+  }
   return (
     <div className={css.root}>
       <div className={css.stack}>

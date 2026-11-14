@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { expect, it, onTestFinished } from 'vitest'
+import { expect, it, onTestFinished, vi } from 'vitest'
 import { developmentLauncher } from '../scripts/development-app.ts'
 
 it.skipIf(process.platform === 'win32')('passes literal workspace paths and cold-start settings to Electron', () => {
@@ -20,4 +20,23 @@ it.skipIf(process.platform === 'win32')('passes literal workspace paths and cold
   const result = execFileSync('/bin/sh', [launcher, '--test-launch-argument'], { encoding: 'utf8' })
   expect(result.trimEnd().split('\n')).toEqual([home, '1', '0', '--inspect=127.0.0.1:9229',
     '--remote-debugging-port=9222', `--user-data-dir=${join(root, 'browser data')}`, root, '--test-launch-argument'])
+})
+
+it.skipIf(process.platform === 'win32')('keeps Phoenix development data and runtime separate on cold start', () => {
+  vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+  onTestFinished(() => { vi.unstubAllEnvs() })
+  const root = mkdtempSync(join(tmpdir(), 'phoenix-development-app-'))
+  onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+  const bundle = join(root, 'Phoenix AI Dev.app')
+  const binary = join(bundle, 'Contents', 'MacOS', 'Electron')
+  mkdirSync(join(bundle, 'Contents', 'MacOS'), { recursive: true })
+  writeFileSync(binary, '#!/bin/sh\nprintf "%s\\n" "$DSH_HOME" "$DSH_DESKTOP_DSH_DIR" "$DSH_DESKTOP_PRIMARY_RUNTIME_DIR" "$@"\n', { mode: 0o755 })
+  const launcher = join(root, 'launcher')
+  const home = join(root, 'home')
+  writeFileSync(launcher, developmentLauncher({ electron: binary, appRoot: root, directory: root,
+    home, userData: join(root, 'browser data'), mainPort: 9229, rendererPort: 9222, hostPort: 9230, openDevtools: '0' }, bundle))
+  const result = execFileSync('/bin/sh', [launcher], { encoding: 'utf8' })
+  expect(result.trimEnd().split('\n').slice(0, 3)).toEqual([
+    home, join(root, 'project'), join(root, 'runtime', 'primary-runtime'),
+  ])
 })

@@ -72,6 +72,12 @@ import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
 
+// A packaged Phoenix build owns its own Harness home. Electron already gives
+// the renamed bundle a distinct userData directory; keep Host data separate too.
+if (app.isPackaged && app.getName() === 'Phoenix AI') {
+  process.env.DSH_HOME = join(app.getPath('appData'), 'Phoenix AI', 'harness')
+}
+
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => { await stopOperationReports() }
 let shuttingDown = false
@@ -1456,7 +1462,9 @@ async function main(): Promise<void> {
     window.focus()
   }
 
-  if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') app.setAsDefaultProtocolClient('dsh')
+  if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') {
+    app.setAsDefaultProtocolClient(app.getName().startsWith('Phoenix AI') ? 'phoenix-ai' : 'dsh')
+  }
   app.on('open-url', (event, url) => {
     event.preventDefault()
     if (url === 'dsh://open' || url === 'dsh://open/') focusPrimaryWindow()

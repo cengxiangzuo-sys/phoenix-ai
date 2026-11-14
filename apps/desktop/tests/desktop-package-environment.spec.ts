@@ -121,6 +121,11 @@ describe('Desktop local packaging configuration', () => {
     expect(parent.DSH_DESKTOP_APP_ID).toBe('com.example.release')
   })
 
+  it('uses an independent Bundle ID for a Phoenix local build', () => {
+    expect(localMacOSPackageEnvironment({ DSH_CLIENT_BRAND: 'phoenix' }).DSH_DESKTOP_APP_ID)
+      .toBe('ai.phoenix.desktop')
+  })
+
   it('takes cache concurrency from the Windows file and defaults to four without ambient overrides', async () => {
     await withDirectory(async (directory) => {
       const parent = { DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '8' }

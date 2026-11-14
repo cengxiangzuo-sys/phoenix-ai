@@ -5,6 +5,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { PixelWhale } from './home-whale/PixelWhale.tsx'
 import { OfficialBrandMark, OfficialBrandName } from './Brand.tsx'
+import { PhoenixBrandMark, PhoenixBrandName } from './PhoenixBrand.tsx'
 
 /** Required service: the UI slot registry. */
 export const inject = ['slots']
@@ -14,6 +15,14 @@ export const inject = ['slots']
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
+  if (process.env.DSH_CLIENT_BRAND === 'phoenix') {
+    ctx.slots.inject('sidebar.brand.mark', () =>
+      ctx.slots.inject('sidebar.brand.name', function* () {
+        yield ctx.slots.register({ name: 'sidebar.brand.mark' }, PhoenixBrandMark)
+        yield ctx.slots.register({ name: 'sidebar.brand.name' }, PhoenixBrandName)
+      }))
+    return
+  }
   ctx.slots.inject('conversation.hero.frame', () => ctx.slots.register({
     name: 'conversation.hero.frame',
     id: 'pixel-whale',

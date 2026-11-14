@@ -15,7 +15,7 @@ import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
 const BUILD_ROOT = join(APP_ROOT, '.desktop-build')
-const DEVELOPMENT_ROOT = join(BUILD_ROOT, 'development')
+const DEVELOPMENT_ROOT = join(BUILD_ROOT, process.env.DSH_CLIENT_BRAND === 'phoenix' ? 'phoenix-development' : 'development')
 
 interface PackageManifest {
   readonly version?: string
@@ -68,6 +68,7 @@ async function launchElectron(): Promise<void> {
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
     DSH_HOME: home,
+    DSH_DESKTOP_DSH_DIR: join(DEVELOPMENT_ROOT, 'project'),
     DSH_DESKTOP_PRIMARY_RUNTIME_DIR: process.env.DSH_DESKTOP_PRIMARY_RUNTIME_DIR ?? developmentRuntimeDirectory(),
     DSH_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
     DSH_DESKTOP_OPEN_DEVTOOLS: process.env.DSH_DESKTOP_OPEN_DEVTOOLS ?? '1',
@@ -120,7 +121,7 @@ async function main(): Promise<void> {
     release,
     target: resolveDesktopBuildTarget(),
   })
-  await preparePrimaryRuntime()
+  if (process.env.DSH_DESKTOP_PRIMARY_RUNTIME_DIR === undefined) await preparePrimaryRuntime()
   await launchElectron()
 }
 

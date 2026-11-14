@@ -52,6 +52,7 @@ export function createElectronBuilderConfig(
   preparedRuntimeVersion = undefined,
 ) {
   const appId = resolveDesktopAppId(env)
+  const phoenix = env.DSH_CLIENT_BRAND === 'phoenix'
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -108,7 +109,7 @@ export function createElectronBuilderConfig(
   const packaged = resolveDesktopBuildCommit(env)
   return {
     appId,
-    protocols: [{ name: 'DeepSeek Harness', schemes: ['dsh'] }],
+    protocols: [{ name: phoenix ? 'Phoenix AI' : 'DeepSeek Harness', schemes: [phoenix ? 'phoenix-ai' : 'dsh'] }],
     extraMetadata: {
       dshDesktopAppId: appId,
       dshDesktopUpdateChannel: update?.channel ?? 'nightly',
@@ -116,11 +117,11 @@ export function createElectronBuilderConfig(
       ...buildVersion === productVersion ? {} : { version: buildVersion },
       ...packaged === undefined ? {} : { dshBuildCommit: packaged.commit, dshBuildDirty: packaged.dirty },
     },
-    productName: 'DeepSeek Harness',
+    productName: phoenix ? 'Phoenix AI' : 'DeepSeek Harness',
     // The default copyright uses author.name; this line names the product instead.
     copyright: `Copyright © ${new Date().getFullYear()} \${productName}`,
     // Unsigned builds carry their own suffix so a shared file can never pass for a release artifact.
-    artifactName: `deepseek-harness-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
+    artifactName: `${phoenix ? 'phoenix-ai' : 'deepseek-harness'}-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
     directories: { output: output.directory },
     asar: true,
     electronDist: buildPaths.electron,
@@ -164,12 +165,12 @@ export function createElectronBuilderConfig(
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
     ],
     mac: {
-      icon: fileURLToPath(new URL('../resources/icon-macos.png', import.meta.url)),
+      icon: fileURLToPath(new URL(phoenix ? '../resources/phoenix-icon.png' : '../resources/icon-macos.png', import.meta.url)),
       category: 'public.app-category.developer-tools',
       // macOS matches the application locale against this bundle, not Electron Framework resources.
       extendInfo: {
         CFBundleLocalizations: ['en', 'zh_CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'],
-        NSMicrophoneUsageDescription: 'DeepSeek Harness uses your microphone to transcribe speech into message drafts.',
+        NSMicrophoneUsageDescription: `${phoenix ? 'Phoenix AI' : 'DeepSeek Harness'} uses your microphone to transcribe speech into message drafts.`,
       },
       // Ad-hoc signing keeps the modified Electron executable runnable without a Developer ID.
       identity: unsigned ? '-' : macOSSigning?.signingIdentity,

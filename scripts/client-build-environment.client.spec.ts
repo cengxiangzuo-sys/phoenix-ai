@@ -170,6 +170,20 @@ describe('client build environment', () => {
     })
   })
 
+  it('keeps the Phoenix identity in a local packaged build', () => {
+    expect(resolveClientBuildEnvironment({
+      DSH_CLIENT_BRAND: 'phoenix',
+      DSH_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
+      DSH_CLIENT_VERSION: '1.2.3',
+    }, 'local')).toEqual({
+      DSH_CLIENT_BRAND: 'phoenix',
+      DSH_CLIENT_BUILD_PROFILE: 'local',
+      DSH_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
+      DSH_CLIENT_TITLE: 'Phoenix AI',
+      DSH_CLIENT_VERSION: '1.2.3',
+    })
+  })
+
   it('requires source metadata for an explicit local build', () => {
     expect(() => { resolveClientBuildEnvironment({}, 'local') }).toThrow(/DSH_CLIENT_COMMIT_HASH/)
     expect(() => {

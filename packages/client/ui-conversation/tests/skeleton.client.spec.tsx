@@ -85,6 +85,7 @@ function fireResize(el: Element): void {
 
 afterEach(() => {
   cleanup()
+  vi.unstubAllEnvs()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   resizeObservers.length = 0
@@ -420,6 +421,15 @@ function mount(
 }
 
 describe('Hero chrome', () => {
+  it('renders the Phoenix welcome card and focuses the native composer', () => {
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    const renderSlot = vi.fn<(key: string, owner: object) => ReactNode>(() => null)
+    const view = render(<div data-conversation-content=""><HeroShell t={makeTranslate(zh, commonZh)} renderSlot={renderSlot as never} /><div role="textbox" contentEditable data-composer-input /></div>)
+    expect(view.getByText('Phoenix AI')).toBeTruthy()
+    fireEvent.click(view.getByRole('button', { name: /开始对话/ }))
+    expect(document.activeElement).toBe(view.getByRole('textbox'))
+    expect(renderSlot).not.toHaveBeenCalled()
+  })
   it('renders the English preview badge through the hero locale seat', () => {
     const renderSlot = vi.fn<(key: string, owner: object, opts?: { fallback?: ReactNode }) => ReactNode>(() => null)
     const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={renderSlot as never} />)

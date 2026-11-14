@@ -1,7 +1,15 @@
-# Phoenix AI 界面预览
+# Phoenix AI interface
 
-依据用户提供的 `凤凰 AI 品牌 UI 展示板.png` 制作的独立可点击视觉预览。此目录从官方 DeepSeek Harness 的干净 `master` 建立在 `phoenix/ui-first-pass` 分支；没有修改 Harness Agent、模型、会话或凭据代码。
+English | [中文](README.zh.md)
 
-直接用浏览器打开 `index.html`。导航、浅深主题、窄窗口菜单、快捷提示和输入交互可操作。输入内容只在当前页面临时显示，不会调用模型，也不写入 Harness 会话。知识库、工具箱和设置是界面占位，接入原生服务前不会声称功能已完成。
+The Phoenix welcome card, sidebar identity, and application identity are integrated into this workspace's Harness desktop client. Build with `DSH_CLIENT_BRAND=phoenix` and `DSH_CLIENT_TITLE='Phoenix AI'`; the default Harness configuration retains the official interface. The welcome card uses the native session, model selection, and composer. “Start chatting” focuses the native composer.
 
-品牌参考图位于 `/Volumes/John/Phoenix/UI设计/凤凰 AI 品牌 UI 展示板.png`。`assets/huolong-original-sheet.webp`、`assets/xiaohuoren-original-sheet.webp` 和用户指定的站姿图 `assets/huolong-welcome-pose.png` 均完整保留。首页使用从站姿图生成的透明角色素材 `assets/huolong-welcome-cutout.png`，在原有深棕色调上加入从左至右的火焰橙渐变；角色占欢迎区右半边，下半身由卡片裁切。此素材是站姿图的衍生图，最终品牌资产仍需与原图核对。左上角的火焰 SVG 仅是界面布局图标，尚未替代原版标准 Logo。
+The runnable development app is at `../apps/desktop/.desktop-build/phoenix-development/Phoenix AI Dev.app`. It has separate `home`, `electron-user-data`, and `project` directories. This development app depends on the current source workspace and prepared local runtime; it is not a portable release. This iteration produces no DMG and makes no paid model calls.
+
+`index.html` remains a clickable static design preview; its chat content is not sent to a model. The user-provided brand board is at `/Volumes/John/Phoenix/UI设计/凤凰 AI 品牌 UI 展示板.png`. The original sheets `assets/huolong-original-sheet.webp`, `assets/xiaohuoren-original-sheet.webp`, and the standing pose `assets/huolong-welcome-pose.png` are preserved. The app welcome card uses the transparent character cutout `assets/huolong-welcome-cutout.png` derived from that pose, retains a dark brown base with an orange gradient, and crops the feet to emphasize the upper body. The flame SVG is a layout mark for this workspace; final brand assets still need comparison with the originals.
+
+## Verification
+
+- The Phoenix client build, build check, and relevant unit tests pass.
+- The development app starts on macOS Apple Silicon. The actual interface shows the native sidebar, session area, model selector, composer, and Phoenix welcome card.
+- No model request was sent in this iteration. A complete native chat or paid API flow is outside this UI acceptance result.
