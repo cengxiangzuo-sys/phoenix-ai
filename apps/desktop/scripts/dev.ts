@@ -11,6 +11,7 @@ import { developmentRuntimeDirectory, resolveDesktopBuildTarget } from './deskto
 import { prepareDevelopmentProject } from './development-project.ts'
 import { prepareDevelopmentApp } from './development-app.ts'
 import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
+import { preparePhoenixRemoteSeed } from './prepare-phoenix-remote.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -122,6 +123,9 @@ async function main(): Promise<void> {
     target: resolveDesktopBuildTarget(),
   })
   if (process.env.DSH_DESKTOP_PRIMARY_RUNTIME_DIR === undefined) await preparePrimaryRuntime()
+  if (process.env.DSH_CLIENT_BRAND === 'phoenix') {
+    await preparePhoenixRemoteSeed(join(DEVELOPMENT_ROOT, 'runtime'), join(APP_ROOT, 'node_modules', 'pnpm', 'bin', 'pnpm.mjs'))
+  }
   await launchElectron()
 }
 

@@ -189,6 +189,8 @@ macOS 和 Linux 从图形界面启动的程序只继承会话管理器提供的�
 
 在 macOS 上，Phoenix 开发 profile 会生成 `Phoenix AI Dev.app`，使用独立的 Bundle ID、数据目录，以及从 `resources/phoenix-icon.png` 生成的图标。它可以与已安装的 DeepSeek Harness 同时运行；重新构建工作区即可更新界面，无需制作安装包。
 开发版应用包以 macOS 原生可执行文件启动内部脚本，因此从 Finder 打开应用即可进入工作台。
+
+Phoenix 左侧栏的**连接手机**位于**新会话**下方，与应用菜单中的入口打开同一个安卓连接对话框。**下载 Phoenix 安卓版**打开安装包分享页，有提取码时会复制到剪贴板。构建时可用 `PHOENIX_ANDROID_DOWNLOAD_URL` 和 `PHOENIX_ANDROID_DOWNLOAD_CODE` 替换分享地址和提取码。**扫码配对**打开远程工作台弹窗，配对文案使用 Phoenix 品牌。弹窗使用 Phoenix 自带的侧栏入口。随包提供的 npm 离线资源会在 Host 启动前安装并启用远程插件一次。之后启动保留该资料里的插件版本和启用状态。插件管理可以独立检查并安装兼容的 npm 更新。
 独立登录窗口使用 Phoenix 图案和配色，账号与 API Key 操作仍沿用原生流程。
 
 Phoenix UI 验证（2026-11-14）：`build:artifacts` 的 8 项门禁全部通过，`build:check` 的 2 项门禁全部通过，55 项相关测试通过，1,211 组文档翻译配对通过。在实际 macOS 开发版应用中，使用隔离的空白资料检查了欢迎页和 API Key 页面；恢复常用资料后检查了首页、插件页、设置页的浅色与深色外观、聊天输入和 820 px 窄窗口。欢迎页图片起初被窗口 CSP 拦截，改用同源资源后完成了 GUI 复测。本次 UI 验证没有发送模型请求。

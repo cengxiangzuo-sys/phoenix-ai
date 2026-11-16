@@ -34,6 +34,16 @@ function createProductApi(): DshDesktopProductApi {
       }) },
     },
     deviceInfo: () => ipcRenderer.invoke(DESKTOP_IPC.deviceInfo) as Promise<string>,
+    ...(process.env.DSH_CLIENT_BRAND === 'phoenix'
+      ? {
+        connectPhone: () => ipcRenderer.invoke(DESKTOP_IPC.connectPhone) as Promise<void>,
+        onPhonePairing(listener: () => void) {
+          const openPairing = (): void => { listener() }
+          ipcRenderer.on(DESKTOP_IPC.connectPhonePairing, openPairing)
+          return () => { ipcRenderer.off(DESKTOP_IPC.connectPhonePairing, openPairing) }
+        },
+      }
+      : {}),
     keyboard: {
       closeWindow: revision => ipcRenderer.invoke(DESKTOP_IPC.shortcutsCloseWindow, revision) as Promise<void>,
       subscribe: (listener) => {
@@ -87,6 +97,12 @@ function createProductApi(): DshDesktopProductApi {
 }
 
 if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
+  if (process.isMainFrame && process.env.DSH_CLIENT_BRAND === 'phoenix') {
+    const mark = (): void => { document.documentElement.setAttribute('data-phoenix-desktop-connect', '') }
+    const root = document.documentElement as HTMLElement | null
+    if (root === null) window.addEventListener('DOMContentLoaded', mark, { once: true })
+    else mark()
+  }
   contextBridge.exposeInMainWorld('dshOnboarding', {
     hasApiKey: () => ipcRenderer.invoke(DESKTOP_IPC.onboardingApiKey) as Promise<boolean>,
     setActive: (active: boolean) => { ipcRenderer.send(DESKTOP_IPC.onboardingActive, active) },

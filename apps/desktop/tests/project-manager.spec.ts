@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import { DesktopProjectManager } from '../src/project-manager.ts'
+import { PHOENIX_REMOTE_PACKAGE, seedPhoenixRemote } from '../src/phoenix-remote.ts'
 import { readProfilePlugins } from '@deepseek-ai/dsh-app-boot'
 import { runtimeFixture } from './runtime-fixture.ts'
 
@@ -43,6 +44,33 @@ afterEach(() => {
 })
 
 describe('desktop external plugin profile', () => {
+  it('keeps a later Phoenix Remote version even with an old seed marker and respects removal', async () => {
+    const { root, manager } = setup()
+    await manager.applyRelease()
+    const profile = manager.paths.profile
+    const path = join(profile, 'package.json')
+    const manifest = JSON.parse(readFileSync(path, 'utf8')) as { dependencies: Record<string, string> }
+    manifest.dependencies[PHOENIX_REMOTE_PACKAGE] = '0.6.6'
+    const markerDir = join(profile, '.plugin-manager')
+    mkdirSync(markerDir, { recursive: true })
+    writeFileSync(join(markerDir, 'phoenix-remote-seeded'), '0.6.4\n')
+    const installed = JSON.stringify(manifest)
+    writeFileSync(path, installed)
+    const prepare = () => seedPhoenixRemote({
+      profile, seed: join(root, 'absent-seed'),
+      runtime: { dsh: manager.runtime.dsh, node: '', pnpm: '', nodeBin: '' },
+    })
+
+    await manager.applyRelease(prepare)
+    expect(readFileSync(path, 'utf8')).toBe(installed)
+
+    delete manifest.dependencies['ds-harness-remote']
+    const removed = JSON.stringify(manifest)
+    writeFileSync(path, removed)
+    await manager.applyRelease(prepare)
+    expect(readFileSync(path, 'utf8')).toBe(removed)
+  })
+
   it('preserves installed packages, profile state, and the lockfile when preparing a launch', async () => {
     const { manager } = setup()
     await manager.applyRelease()

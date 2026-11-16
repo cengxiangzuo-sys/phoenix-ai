@@ -50,13 +50,14 @@ function makeHeaderProps(): HeaderLeadingControlsProps {
   }
 }
 
-function mountShell({ collapsed = false, width = 300, drawer = false, shortcuts = [], panels = [], content }: {
+function mountShell({ collapsed = false, width = 300, drawer = false, shortcuts = [], panels = [], content, openPhoneConnection }: {
   collapsed?: boolean
   width?: number
   drawer?: boolean
   shortcuts?: readonly ShortcutCatalogEntry[]
   panels?: readonly SidebarPanelMetadata[]
   content?: ReactNode
+  openPhoneConnection?: () => Promise<void>
 } = {}) {
   const startSession = vi.fn()
   const toggleSidebar = vi.fn()
@@ -79,6 +80,7 @@ function mountShell({ collapsed = false, width = 300, drawer = false, shortcuts 
       useContextMenu={contextMenuHook()} useResource={useResource} useWorkspaces={neverHook}
       {...allowAllAccess}
       startSession={startSession} toggleSidebar={toggleSidebar} trackEntryClick={trackEntryClick} t={t}
+      {...(openPhoneConnection ? { openPhoneConnection } : {})}
       renderFactorySlot={() => null}
       renderSlot={((
         key: string,
@@ -132,6 +134,16 @@ function mountShell({ collapsed = false, width = 300, drawer = false, shortcuts 
 }
 
 describe('SidebarRoot shell', () => {
+  it('shows the desktop phone action immediately after New Session and opens the dialog', () => {
+    const openPhoneConnection = vi.fn(async () => {})
+    mountShell({ openPhoneConnection })
+    const buttons = screen.getAllByRole('button')
+    const phone = screen.getByRole('button', { name: 'Connect Phone' })
+    expect(buttons[buttons.indexOf(phone) - 1]?.getAttribute('aria-label')).toBe('New session')
+    fireEvent.click(phone)
+    expect(openPhoneConnection).toHaveBeenCalledOnce()
+  })
+
   it('puts navigation and workspaces in one viewport without scrolling primary controls or the footer', () => {
     mountShell({ panels: [{ id: 'notes' as SidebarPanelMetadata['id'], order: 1, label: 'Notes' }] })
     const viewport = document.querySelector('[data-sidebar-scrollport]')!

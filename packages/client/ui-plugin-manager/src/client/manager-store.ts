@@ -885,11 +885,11 @@ export class PluginManagerController {
    * installation reopens as it is.
    * @returns whether a new dialog started.
    */
-  private openDialog(): boolean {
+  private openDialog(spec = ''): boolean {
     const started = this.getSnapshot().install.requestId === undefined
     if (started) {
       this.transientRegistry = false
-      this.patch({ install: { ...IDLE_INSTALL, open: true, registry: this.registryMemory.getSnapshot() ?? OFFICIAL_REGISTRY } })
+      this.patch({ install: { ...IDLE_INSTALL, spec, open: true, registry: this.registryMemory.getSnapshot() ?? OFFICIAL_REGISTRY } })
       const read: RegistryRead = { choice: this.getSnapshot().install.registry }
       this.registryRead = read
       read.done = this.readRegistries(read).finally(() => { delete read.done })
@@ -898,6 +898,15 @@ export class PluginManagerController {
     }
     void this.reconcileInstall()
     return started
+  }
+
+  /**
+   * Offer a prefilled bundle install for the user to review in the plugin manager.
+   * @param spec - Package spec to put in the install field.
+   */
+  offerInstall(spec: string): void {
+    if (this.getSnapshot().install.open) return
+    this.openDialog(spec)
   }
 
   /**

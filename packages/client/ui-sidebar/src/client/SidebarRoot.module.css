@@ -524,6 +524,43 @@
 .newSessionContent { display: flex; width: 100cqw; align-items: center; justify-content: center; gap: 6px; }
 .newSessionContent > svg { flex: none; }
 
+.root:not(.collapsed) .connectPhone { margin-top: 6px; }
+:global([data-windows-titlebar]) .collapsed .connectPhone { display: none; }
+
+/* Keep the upstream popup mounted while Phoenix supplies its launcher. */
+:global([data-phoenix-desktop-connect] .dshRemoteSidebarEntry),
+:global([data-phoenix-desktop-connect] .dshRemoteAccountEntry),
+:global([data-phoenix-desktop-connect] .dshRemotePage .dshRemoteStarLink) {
+  display: none !important;
+}
+
+.phoneIcon {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 9px;
+  height: 14px;
+  border: 1.5px solid currentColor;
+  border-radius: 2.5px;
+}
+
+.phoneIcon::after {
+  content: '';
+  position: absolute;
+  inset: auto 2px 1.5px;
+  height: 1px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.phoneIconRail { width: 11px; height: 18px; }
+
+.phoneConnectionError {
+  margin: 4px calc(var(--dsh-sidebar-paint-inset) + 1px) 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
 .newSessionShortcut {
   opacity: 0;
   display: inline-flex;

@@ -29,8 +29,9 @@ const clientEnvironment = resolveClientBuildEnvironment(process.env.DSH_CLIENT_V
 const clientVersion = clientEnvironment.DSH_CLIENT_VERSION
 if (clientVersion === undefined) throw new Error('desktop build: the client environment carries no DSH_CLIENT_VERSION')
 
-/** Inline the one public build value the Node entry reads; every other variable stays a runtime lookup. */
+/** Inline the version selected for this desktop build. */
 const clientVersionDefine = { 'process.env.DSH_CLIENT_VERSION': JSON.stringify(clientVersion) }
+const clientBrandDefine = { 'process.env.DSH_CLIENT_BRAND': JSON.stringify(clientEnvironment.DSH_CLIENT_BRAND ?? '') }
 
 export default defineConfig([
   {
@@ -55,7 +56,12 @@ export default defineConfig([
   {
     entry: ['lib/types/main.js'],
     plugins: [packagedImportsPlugin(mainProcessImports)],
-    define: clientVersionDefine,
+    define: {
+      ...clientVersionDefine,
+      ...clientBrandDefine,
+      'process.env.PHOENIX_ANDROID_DOWNLOAD_URL': JSON.stringify(process.env.PHOENIX_ANDROID_DOWNLOAD_URL ?? ''),
+      'process.env.PHOENIX_ANDROID_DOWNLOAD_CODE': JSON.stringify(process.env.PHOENIX_ANDROID_DOWNLOAD_CODE ?? ''),
+    },
     onSuccess: async () => {
       await build({
         configFile: false,
@@ -103,6 +109,7 @@ export default defineConfig([
     // Sandboxed Electron preloads run as CommonJS even though the application package is ESM.
     entry: { [name]: `lib/types/${name}.js` },
     plugins: [packagedImportsPlugin(preloadImports)],
+    define: clientBrandDefine,
     outDir: 'lib',
     format: 'cjs' as const,
     codeSplitting: false,

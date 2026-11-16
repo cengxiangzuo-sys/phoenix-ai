@@ -200,6 +200,8 @@ export type SidebarRootInjected = {
    * recent Workspace, or clear into the New Session pure view when none exist.
    */
   startSession: (workspaceId?: WorkspaceId) => void
+  /** Open Phoenix's native phone connection dialog, when available. */
+  openPhoneConnection?: () => Promise<void>
   /** Toggle the sidebar column through the layout service. */
   toggleSidebar: () => void
   /** Select the global panel addressed by a sidebar row. */

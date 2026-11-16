@@ -54,6 +54,11 @@ declare module '@deepseek-ai/cordis' {
        * @param packageName - npm package name of the bundle.
        */
       openBundle(packageName: string): void
+      /**
+       * Open a bundle or prefill its installation dialog after confirming it is absent.
+       * @param packageName - npm package name of the bundle.
+       */
+      openBundleForSetup(packageName: string): Promise<void>
       /** Open the Plugins main list without opening a dialog or changing the current Session. */
       openList(): void
     }
@@ -150,16 +155,27 @@ export function apply(ctx: ClientContext): void {
       yield ctx.layout.panelInfo.subscribe(() => {
         if (ctx.layout.panelInfo.getSnapshot().activePanelId !== PANEL_ID) instance.actions.setView({ kind: 'list' })
       })
+      const openBundle = (packageName: string): void => {
+        ctx.layout.selectPanel(PANEL_ID)
+        instance.actions.setTab('installed')
+        instance.actions.setView({ kind: 'package', name: packageName })
+      }
       const disposeNavigation = ctx.reflect.provide('pluginNavigation', {
         openList: () => {
           ctx.layout.selectPanel(PANEL_ID)
           instance.actions.setTab('installed')
           instance.actions.setView({ kind: 'list' })
         },
-        openBundle: (packageName: string) => {
-          ctx.layout.selectPanel(PANEL_ID)
-          instance.actions.setTab('installed')
-          instance.actions.setView({ kind: 'package', name: packageName })
+        openBundle,
+        openBundleForSetup: async (packageName: string) => {
+          openBundle(packageName)
+          if (controller.getSnapshot().status !== 'ready') await controller.load()
+          const state = controller.getSnapshot()
+          if (state.status === 'ready' && ctx.layout.panelInfo.getSnapshot().activePanelId === PANEL_ID
+            && !state.packages.some(pkg => pkg.name === packageName && pkg.availability !== 'missing')) {
+            instance.actions.setView({ kind: 'list' })
+            controller.offerInstall(packageName)
+          }
         },
       })
       yield () => { void disposeNavigation() }

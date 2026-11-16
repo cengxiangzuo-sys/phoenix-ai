@@ -32,6 +32,8 @@ export const DESKTOP_IPC = {
   fileDragStart: 'dsh-desktop:file-drag-start',
   fileDragRelease: 'dsh-desktop:file-drag-release',
   deviceInfo: 'dsh-desktop:device-info',
+  connectPhone: 'dsh-desktop:connect-phone',
+  connectPhonePairing: 'dsh-desktop:connect-phone-pairing',
   localeBootstrap: 'dsh-desktop:locale-bootstrap',
   localeChanged: 'dsh-desktop:locale-changed',
   updatesChannelGet: 'dsh-desktop:updates-channel-get',
@@ -102,6 +104,10 @@ export interface DshDesktopProductApi {
    * @returns `name=value` fields separated by `; `, with no hostname, user name, or serial number.
    */
   deviceInfo(): Promise<string>
+  /** Open the native Phoenix phone connection dialog from the main application. */
+  readonly connectPhone?: () => Promise<void>
+  /** Navigate to the remote plugin after the user selects pairing. */
+  readonly onPhonePairing?: (listener: () => void) => () => void
   readonly updates: {
     readonly channels: DesktopChannelBridge
     status(): Promise<DesktopUpdatePresentation>

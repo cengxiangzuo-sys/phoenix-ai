@@ -74,11 +74,37 @@ export function apply(ctx: ClientContext): void {
     getSnapshot: () => ctx.slots.entriesOfSlot('sidebar.panellist.actions').length > 0,
     subscribe: (listener: () => void) => ctx.slots.subscribe('sidebar.panellist.actions', listener),
   }
+  const desktop = (globalThis as typeof globalThis & {
+    dshDesktop?: {
+      protocolVersion: number
+      connectPhone?: () => Promise<void>
+      onPhonePairing?: (listener: () => void) => () => void
+    }
+  }).dshDesktop
+  const openPhoneConnection = desktop?.protocolVersion === 1 ? desktop.connectPhone : undefined
+  const onPhonePairing = desktop?.protocolVersion === 1 ? desktop.onPhonePairing : undefined
+  if (onPhonePairing !== undefined) {
+    ctx.effect(() => onPhonePairing(() => {
+      const entry = ctx.slots.entriesOfSlot('shell.overlay')
+        .find(item => item.options.id === 'ds-harness-remote-global-context' && item.locale === 'ds-harness-remote')
+      // The Remote plugin exposes this same launcher to its own app-wide sign-in action.
+      const openRemote = entry?.inject?.().onSignIn
+      if (typeof openRemote === 'function') {
+        openRemote()
+        return
+      }
+      const navigation = ctx.get('pluginNavigation') as { openBundleForSetup(name: string): Promise<void> } | undefined
+      void navigation?.openBundleForSetup('ds-harness-remote').catch((error: unknown) => {
+        console.error('Phoenix phone pairing could not open plugin setup', error)
+      })
+    }), 'ui-sidebar: Phoenix phone pairing navigation')
+  }
 
   const injectProps = (): SidebarRootInjected => ({
     // The shell's New Session button rides the Workspace UI's shared action
     // (current Session Workspace, then recent Workspace).
     startSession: (workspaceId) => { workspaceNavigation.startSession(workspaceId) },
+    ...(openPhoneConnection ? { openPhoneConnection } : {}),
     toggleSidebar: () => { ctx.layout.toggleSidebar() },
     selectPanel: (id) => { ctx.layout.selectPanel(id) },
     setPinned: panelPins.setPinned,

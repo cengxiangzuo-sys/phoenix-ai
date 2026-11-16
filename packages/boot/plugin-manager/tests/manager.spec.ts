@@ -2,6 +2,7 @@
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { realpath } from 'node:fs/promises'
 import { once } from 'node:events'
+import { createHash } from 'node:crypto'
 import { createServer } from 'node:http'
 import type { Socket } from 'node:net'
 import { join, resolve } from 'node:path'
@@ -2054,6 +2055,78 @@ it('lists newer registry versions with tags, times, deprecation, bundle declarat
   expect(view).toHaveBeenCalledWith(dir, 'extra', expect.objectContaining({ fields: ['versions', 'time', 'dist-tags'], timeoutMs: 1000 }))
   expect(view).toHaveBeenCalledWith(dir, 'extra@1.2.0', expect.objectContaining({ fields: ['name', 'version', 'engines', 'peerDependencies', 'deprecated', 'dsh'], registry: null }))
 })
+
+it('finds and installs a newer Phoenix Remote from a registry after the bundled version', async () => {
+  const name = 'ds-harness-remote'
+  const oldVersion = '0.6.5'
+  const newVersion = '0.6.6'
+  const metadata = (version: string) => ({ name, version, dsh: BUNDLE })
+  const { manager, dir, profile } = await fixture('startup', false, undefined, {}, undefined, (dir) => {
+    const manifest = readProfileManifest('test', dir)
+    manifest.dependencies = { [name]: oldVersion }
+    manifest.dsh = { profile: { bundles: ['core'] } }
+    writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+    const installed = join(dir, 'node_modules', name)
+    mkdirSync(installed, { recursive: true })
+    writeFileSync(join(installed, 'package.json'), JSON.stringify(metadata(oldVersion)))
+    writeFileSync(join(installed, 'cordis.patch.yml'), '[]')
+  })
+  expect((await manager.listBundles()).find(item => item.name === name)).toMatchObject({
+    installed: true, updatable: true, official: false, version: oldVersion, enabled: false,
+  })
+
+  const archive = join(profile.home, 'remote.tgz')
+  const packageDir = join(profile.home, 'package')
+  mkdirSync(packageDir)
+  writeFileSync(join(packageDir, 'package.json'), JSON.stringify(metadata(newVersion)))
+  writeFileSync(join(packageDir, 'cordis.patch.yml'), '[]')
+  await execa('tar', ['-czf', archive, '-C', profile.home, 'package'])
+  const bytes = readFileSync(archive)
+  let registry = ''
+  const server = createServer((request, response) => {
+    if (request.url === `/${name}`) {
+      response.setHeader('Content-Type', 'application/json')
+      response.end(JSON.stringify({
+        name,
+        'dist-tags': { latest: newVersion },
+        time: { [newVersion]: '2026-11-17T00:00:00.000Z' },
+        versions: {
+          [oldVersion]: metadata(oldVersion),
+          [newVersion]: {
+            ...metadata(newVersion),
+            dist: { tarball: `${registry}/remote.tgz`, integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` },
+          },
+        },
+      }))
+    } else if (request.url === '/remote.tgz') {
+      response.end(bytes)
+    } else {
+      response.writeHead(404).end()
+    }
+  })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  onTestFinished(() => { server.closeAllConnections(); server.close() })
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('test registry has no TCP port')
+  registry = `http://127.0.0.1:${address.port}`
+  // Keep the fixture's package and metadata out of the user's pnpm cache.
+  const workspace = join(dir, 'pnpm-workspace.yaml')
+  const store = join(profile.home, 'fixture-store')
+  const cache = join(profile.home, 'fixture-cache')
+  writeFileSync(workspace, `${readFileSync(workspace, 'utf8')}\nstoreDir: ${JSON.stringify(store)}\ncacheDir: ${JSON.stringify(cache)}\n`)
+
+  const versions = await manager.listVersions(name, { registry })
+  expect(versions).toMatchObject({
+    status: 'listed', installed: oldVersion, versions: [{ version: newVersion, bundle: true }],
+  })
+  const update = await manager.updateBundle(name, newVersion, { registry })
+  expect(update).toMatchObject({ from: oldVersion, to: newVersion, result: { changed: true, enabled: false } })
+  expect(readProfileManifest('test', dir).dependencies?.[name]).toBe(newVersion)
+  expect(JSON.parse(readFileSync(join(dir, 'node_modules', name, 'package.json'), 'utf8')).version).toBe(newVersion)
+  expect(existsSync(store)).toBe(true)
+  expect(existsSync(cache)).toBe(true)
+}, 45_000)
 
 it('lists versions from the next registry while one is unreachable, and refuses what no registry answered', async () => {
   const { manager } = await fixture(undefined, false, undefined, { inspectTimeoutMs: 1000 })

@@ -153,6 +153,7 @@ export function SidebarRoot({
   width,
   drawer,
   startSession,
+  openPhoneConnection,
   toggleSidebar,
   selectPanel,
   setPinned,
@@ -175,6 +176,7 @@ export function SidebarRoot({
   const newShortcut = useShortcuts(rows => rows.find(row => row.id === 'session.new'))
   // A page whose access snapshot excludes starting a Session offers no New Session affordance.
   const canStartSession = useRemoteAccess('session/create')
+  const [phoneConnectionFailed, setPhoneConnectionFailed] = useState(false)
   const toggleLabel = collapsed ? t('toggle.open') : t('toggle.collapse')
   // Wide content stays mounted while the collapse animates (fading via
   // .collapsed .wide), unmounts at settle, and remounts right away on expand.
@@ -401,6 +403,26 @@ export function SidebarRoot({
         </Tooltip>
       )}
 
+      {openPhoneConnection !== undefined && (
+        <Tooltip label={t('phone.connect')} delayMs={500} side={captionTooltipSide} disabled={wide}>
+          <button
+            type="button"
+            className={clsx(css.newSession, css.connectPhone)}
+            aria-label={t('phone.connect')}
+            onClick={() => {
+              setPhoneConnectionFailed(false)
+              void openPhoneConnection().catch(() => { setPhoneConnectionFailed(true) })
+            }}
+          >
+            <span className={css.newSessionLabelMask}><span className={css.newSessionContent}>
+              <span className={clsx(css.phoneIcon, !wide && css.phoneIconRail)} aria-hidden="true" />
+              {wide && <span className={clsx(css.newSessionLabel, css.wide)}>{t('phone.connect')}</span>}
+            </span></span>
+          </button>
+        </Tooltip>
+      )}
+      {phoneConnectionFailed && <span className={css.phoneConnectionError} role="alert">{t('phone.openFailed')}</span>}
+
       <div className={css.scrollRegion}>
         <div
           ref={scrollHandoff.bindViewportRef}
@@ -457,7 +479,6 @@ export function SidebarRoot({
       {copiedToast !== null && (
         <Toast key={copiedToast} tone="success" text={t('version.copied')} onDone={() => { setCopiedToast(null) }} />
       )}
-
       {/* Footer actions stack above Settings in both sidebar widths. */}
       <div className={css.footArea}>
         <div className={css.footerActions}>

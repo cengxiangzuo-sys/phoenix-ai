@@ -77,15 +77,17 @@ export class DesktopProjectManager {
   }
 
   /**
-   * Load application metadata and prepare the external plugin profile without installing packages.
+   * Load application metadata and initialize the external plugin profile.
+   * @param prepareProfile - Optional preparation for the initialized profile before the Host starts.
    */
-  async applyRelease(): Promise<void> {
-    await this.withLock(() => {
+  async applyRelease(prepareProfile?: () => Promise<void>): Promise<void> {
+    await this.withLock(async () => {
       // Validation only: an unreadable or mismatched runtime descriptor stops preparation before the Host starts.
       readDesktopRuntime(this.runtime.dsh)
       migrateProfileSettings(this.paths.profile)
       createPluginProfile(this.paths.profile)
       removeLinkProjections(this.paths.profile)
+      await prepareProfile?.()
     })
   }
 

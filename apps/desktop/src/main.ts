@@ -8,7 +8,7 @@ import { isDesktopUpdateChannel } from './settings-file.ts'
 import type { ProductEventMap, ProductEvent } from '@deepseek-ai/dsh-client-product-analytics/types'
 import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 import { access, readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -71,6 +71,8 @@ import { DesktopUpdateOverlays } from './update-overlay.ts'
 import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
+import { phoenixMobileDownloadUrl, phoenixMobileMessages, PHOENIX_ANDROID_SHARE } from './phoenix-mobile.ts'
+import { PHOENIX_REMOTE_SEED, seedPhoenixRemote } from './phoenix-remote.ts'
 
 // A packaged Phoenix build owns its own Harness home. Electron already gives
 // the renamed bundle a distinct userData directory; keep Host data separate too.
@@ -388,6 +390,15 @@ async function main(): Promise<void> {
     : join(process.resourcesPath, 'runtime', 'primary-runtime')
   const activeProject = paths.profile
   const manager = new DesktopProjectManager(paths, resources)
+  const preparePhoenixProfile = process.env.DSH_CLIENT_BRAND === 'phoenix' ? async (): Promise<void> => {
+    try {
+      const runtimeAssets = development ? join(dirname(resources.dsh), 'runtime') : join(process.resourcesPath, 'runtime')
+      await seedPhoenixRemote({ profile: activeProject, runtime: resources, seed: join(runtimeAssets, PHOENIX_REMOTE_SEED) })
+    } catch (error) {
+      // The pairing action still offers installation if preparing the shipped copy fails.
+      console.warn('Phoenix Remote: could not prepare the preinstalled plugin', error)
+    }
+  } : undefined
   // Dock and Finder launches inherit only launchd's environment; every Host shares one login-shell read.
   const loginShellRead = new AbortController()
   // The probe runs in its own process group, which outlives Desktop unless the read is aborted.
@@ -465,6 +476,40 @@ async function main(): Promise<void> {
       return await updateDialog.show(parent, { ...options, signal: controller.signal })
     }
     finally { ordinaryDialogs.delete(controller) }
+  }
+  const showPhoenixMobile = async (): Promise<void> => {
+    const configuredDownload = process.env.PHOENIX_ANDROID_DOWNLOAD_URL?.trim()
+    const download = phoenixMobileDownloadUrl(configuredDownload || PHOENIX_ANDROID_SHARE.url)
+    const code = process.env.PHOENIX_ANDROID_DOWNLOAD_CODE?.trim() || (configuredDownload ? undefined : PHOENIX_ANDROID_SHARE.accessCode)
+    const copy = phoenixMobileMessages(currentDesktopLocale().id)
+    const actions: Array<{ label: string; run?: () => void | Promise<void> }> = []
+    if (download !== undefined) {
+      actions.push({ label: copy.download, run: async () => {
+        if (code) clipboard.writeText(code)
+        await shell.openExternal(download)
+      } })
+      actions.push(code ? { label: copy.copyCode, run: () => { clipboard.writeText(code) } }
+        : { label: copy.copy, run: () => { clipboard.writeText(download) } })
+    }
+    if (mainWindow?.webContents.mainFrame.url.startsWith('dsh-app://app/')) {
+      actions.push({ label: copy.pair, run: () => {
+        if (mainWindow?.webContents.mainFrame.url.startsWith('dsh-app://app/')) {
+          mainWindow.webContents.send(DESKTOP_IPC.connectPhonePairing)
+        }
+      } })
+    }
+    actions.push({ label: copy.close })
+    const { response } = await ordinaryMessageBox({
+      type: 'info',
+      title: copy.title,
+      message: copy.title,
+      detail: download !== undefined
+        ? code ? `${copy.detail}\n\n${copy.downloadCodeHint}` : copy.detail
+        : copy.unpublished,
+      buttons: actions.map(action => action.label),
+      cancelId: actions.length - 1,
+    })
+    await actions[response]?.run?.()
   }
   // Copy comes from the same locale as the update prompts so the dialog
   // chrome and its content never mix languages.
@@ -678,7 +723,7 @@ async function main(): Promise<void> {
     startup ??= (async () => {
       await navigateMain(applicationUrl)
       await backend.start(async () => {
-        await Promise.all([manager.applyRelease(), prepareHostEnvironment()])
+        await Promise.all([manager.applyRelease(preparePhoenixProfile), prepareHostEnvironment()])
       })
       if (backend.host !== undefined) await openInitialWindow()
       if (backend.host !== undefined) updateJournal?.action('workspace-ready')
@@ -858,6 +903,12 @@ async function main(): Promise<void> {
     if (owner === undefined || event.sender !== owner.webContents || event.senderFrame !== owner.webContents.mainFrame
       || !event.senderFrame.url.startsWith('dsh-app://app/')) throw new Error('Rejected Platform command')
     return owner
+  }
+  if (process.env.DSH_CLIENT_BRAND === 'phoenix') {
+    ipcMain.handle(DESKTOP_IPC.connectPhone, async (event) => {
+      assertMainApplication(event)
+      await showPhoenixMobile()
+    })
   }
   installFileActions(assertMainApplication, () => hostUrl)
   ipcMain.on(PLATFORM_IPC.bootstrap, (event) => {
@@ -1188,6 +1239,12 @@ async function main(): Promise<void> {
       : { label: currentDesktopLocale().messages.aboutMenu, role: 'about' },
     { type: 'separator' },
     { label: currentDesktopLocale().messages.checkUpdatesMenu, click: () => { void openUpdatePrompt(true) } },
+    ...process.env.DSH_CLIENT_BRAND === 'phoenix'
+      ? [{
+        label: phoenixMobileMessages(currentDesktopLocale().id).title,
+        click: () => { void showPhoenixMobile().catch((error: unknown) => { console.error(error) }) },
+      }]
+      : [],
     ...process.platform === 'darwin' || process.platform === 'win32'
       ? [{ label: currentDesktopLocale().messages.cliCommandMenu, click: () => { void commandManager.show() } }] : [],
     { type: 'separator' },
