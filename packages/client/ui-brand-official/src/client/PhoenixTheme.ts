@@ -56,6 +56,8 @@ export function installPhoenixTheme(ctx: ClientContext): void {
     }, 'phoenix-brand: shell styling')
     if (typeof localStorage === 'undefined') return
     try {
+      // Keep the office service in the native Harness shell.
+      if (localStorage.getItem('ds-bot:surface') === null) localStorage.setItem('ds-bot:surface', 'agent')
       if (localStorage.getItem(INITIAL_THEME_KEY) !== null) return
       localStorage.setItem(INITIAL_THEME_KEY, '1')
       if (scope.theme.getTheme().preference === 'system') scope.theme.setTheme('dark')

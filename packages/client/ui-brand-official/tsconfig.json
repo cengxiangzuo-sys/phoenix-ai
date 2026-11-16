@@ -21,6 +21,15 @@
       "path": "../ui-sidebar"
     },
     {
+      "path": "../ui-workspace"
+    },
+    {
+      "path": "../ui-layout"
+    },
+    {
+      "path": "../../api/workspace-controller/tsconfig.client.json"
+    },
+    {
       "path": "../ui-slots"
     },
     {

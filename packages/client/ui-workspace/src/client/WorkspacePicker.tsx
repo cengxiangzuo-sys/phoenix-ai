@@ -77,7 +77,9 @@ export function WorkspacePickFlow({
   // Without an owner-provided anchor, the menu remains hidden.
   const absentAnchor = useRef<HTMLElement>(null)
   const workspaceSnapshot = useWorkspaces(state => state)
-  const workspaces = workspaceSnapshot.items
+  const workspaces = process.env.DSH_CLIENT_BRAND === 'phoenix'
+    ? workspaceSnapshot.items.filter(item => !/\/bot\/workspace\/?$/.test(item.path))
+    : workspaceSnapshot.items
   const [errorOpen, setErrorOpen] = useState(false)
   const [modalError, setModalError] = useState<string | null>(null)
   const [flowOpen, setFlowOpen] = useState(false)

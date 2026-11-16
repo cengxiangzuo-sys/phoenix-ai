@@ -333,6 +333,13 @@ function groupByWorkspace(
   const groups: Group[] = []
   const accounted = new Set<SessionId>()
   for (const workspace of workspaces) {
+    // Phoenix presents the office's private team Sessions through its own
+    // employee view; they should not become a second sidebar destination.
+    if (process.env.DSH_CLIENT_BRAND === 'phoenix'
+      && /\/bot\/workspace\/?$/.test(workspace.path)) {
+      for (const id of workspace.sessionIds) accounted.add(id)
+      continue
+    }
     const members: SessionSummary[] = []
     for (const id of workspace.sessionIds) {
       const summary = list.byId[id]

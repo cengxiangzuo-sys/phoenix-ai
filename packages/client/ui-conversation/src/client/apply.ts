@@ -11,6 +11,8 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 // Type-only service and declaration merges used by this assembly.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { ShortcutCommandId, ShortcutFixedCommand } from '@deepseek-ai/dsh-client-shortcuts/client'
@@ -59,7 +61,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** Services required by the Conversation plugin. */
 export const inject = [
-  'slots', 'sessions', 'fileUpload', 'uiSession', 'uiWorkspace', 'locale', 'configForms',
+  'slots', 'sessions', 'fileUpload', 'uiSession', 'uiWorkspace', 'locale', 'configForms', 'layout',
 ]
 
 /** Conversation runtime configuration. */
@@ -360,6 +362,9 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       widthControls: { scope: 'root' },
     },
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
+      openOffice: () => {
+        if (process.env.DSH_CLIENT_BRAND === 'phoenix') ctx.layout.selectPanel('phoenix-office' as MainPanelId)
+      },
       hooks: {
         composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
       },

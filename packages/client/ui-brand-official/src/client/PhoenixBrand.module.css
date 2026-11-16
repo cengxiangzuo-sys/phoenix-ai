@@ -1,3 +1,4 @@
 .mark { display: block; object-fit: contain; }
 .name { color: var(--dsw-alias-label-primary); font-size: 20px; font-weight: 500; white-space: nowrap; }
 .name span { color: #ff7900; }
+:global(body[data-phoenix-brand] .bt-return) { display: none !important; }

@@ -1571,6 +1571,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
   // The page omits profile bundles and persistent terminals. Other installed or offered bundles and
   // unreadable selections remain manageable; Settings' Plugin list inspects the full Host inventory.
   const listed = state.packages.filter(pkg => !HIDDEN_BUNDLES.has(pkg.name)
+    && !(process.env.DSH_CLIENT_BRAND === 'phoenix' && pkg.name === 'ds-bot')
     && (pkg.listedByDefault !== false || pkg.enabled || pkg.installed || rowsRunning(pkg))
     && (pkg.installed || pkg.official || pkg.error !== undefined))
   const mine = listed.filter(pkg => !pkg.official)

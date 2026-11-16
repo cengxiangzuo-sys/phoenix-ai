@@ -946,6 +946,11 @@ export function WorkspaceBrowser({
     })),
     [storedWorkspaces, defaultWorkspaceName],
   )
+  const officeInternalSessionIds = useMemo(() => new Set(
+    process.env.DSH_CLIENT_BRAND === 'phoenix'
+      ? workspaces.filter(workspace => /\/bot\/workspace\/?$/.test(workspace.path)).flatMap(workspace => workspace.sessionIds)
+      : [],
+  ), [workspaces])
   const workspacePhase = useWorkspaces(state => state.phase)
   const workspaceStreamState = useWorkspaces(state => state.state)
   const archivedSessionIds = useWorkspaces(state => state.archivedSessionIds)
@@ -978,8 +983,8 @@ export function WorkspaceBrowser({
     : undefined
   const ungroupedMemberIds = useMemo(() => {
     const accounted = new Set(workspaces.flatMap(workspace => workspace.sessionIds))
-    return list.ids.filter(id => list.byId[id] !== undefined && !accounted.has(id))
-  }, [list, workspaces])
+    return list.ids.filter(id => list.byId[id] !== undefined && !accounted.has(id) && !officeInternalSessionIds.has(id))
+  }, [list, workspaces, officeInternalSessionIds])
   const orderState = useMemo(
     () => ({ pinnedSessionIds, archivedSessionIds }),
     [archivedSessionIds, pinnedSessionIds],
@@ -988,7 +993,10 @@ export function WorkspaceBrowser({
     () => ({ ...orderState, archivedFilter }),
     [orderState, archivedFilter],
   )
-  const flatMemberIds = useMemo(() => sessionMemberIds(list), [list])
+  const flatMemberIds = useMemo(
+    () => sessionMemberIds(list).filter(id => !officeInternalSessionIds.has(id)),
+    [list, officeInternalSessionIds],
+  )
   const orderedWorkspaces = useMemo(() => workspaces.map((workspace) => {
     const memberIds = workspace.sessionIds
     const baseOrder = orderBy === 'updated'

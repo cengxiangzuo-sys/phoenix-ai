@@ -3,10 +3,15 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { PixelWhale } from './home-whale/PixelWhale.tsx'
 import { OfficialBrandMark, OfficialBrandName } from './Brand.tsx'
 import { PhoenixBrandMark, PhoenixBrandName } from './PhoenixBrand.tsx'
 import { installPhoenixTheme } from './PhoenixTheme.ts'
+import { PhoenixOffice, PhoenixOfficeIcon } from './PhoenixOffice.tsx'
 
 /** Required service: the UI slot registry. */
 export const inject = ['slots']
@@ -23,6 +28,39 @@ export function apply(ctx: ClientContext): void {
         yield ctx.slots.register({ name: 'sidebar.brand.mark' }, PhoenixBrandMark)
         yield ctx.slots.register({ name: 'sidebar.brand.name' }, PhoenixBrandName)
       }))
+    ctx.inject(['layout', 'uiWorkspace'], (scope) => {
+      scope.slots.inject('main', () => scope.slots.register({
+        name: 'main', key: 'phoenix-office',
+        inject: () => ({
+          onHome: () => {
+            scope.layout.selectPanel(null)
+            scope.uiWorkspace.startSession()
+          },
+          onOpenEmployee: (sessionId: string) => {
+            scope.layout.selectPanel(null)
+            scope.uiWorkspace.openSession(sessionId as SessionId)
+          },
+        }),
+      }, PhoenixOffice))
+      scope.slots.inject('sidebar.panellist', () => scope.slots.register({
+        name: 'sidebar.panellist', id: 'phoenix-office', order: 1,
+        label: 'AI 办公室',
+      }, PhoenixOfficeIcon))
+    })
+    ctx.inject(['workspaces'], (scope) => {
+      const renameInternalWorkspace = () => {
+        for (const workspace of scope.workspaces.list.getSnapshot().items) {
+          if (workspace.title === 'DS Bot' && /\/bot\/workspace\/?$/.test(workspace.path)) {
+            void scope.workspaces.rename(workspace.workspaceId as WorkspaceId, 'AI 办公室资料')
+          }
+        }
+      }
+      scope.effect(() => {
+        const unsubscribe = scope.workspaces.list.subscribe(renameInternalWorkspace)
+        renameInternalWorkspace()
+        return unsubscribe
+      }, 'phoenix-office: internal workspace name')
+    })
     return
   }
   ctx.slots.inject('conversation.hero.frame', () => ctx.slots.register({

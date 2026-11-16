@@ -341,12 +341,15 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       || (draftOptions.whenDraftExists ?? (draftOptions.clearPreviousDraft === true ? 'replace' : 'keep')) === 'replace')
     const workspace = this.workspaces.list.getSnapshot()
     const sessions = this.sessions.list.getSnapshot()
+    const newSessionWorkspaces = process.env.DSH_CLIENT_BRAND === 'phoenix'
+      ? workspace.items.filter(item => !/\/bot\/workspace\/?$/.test(item.path))
+      : workspace.items
     const current = this.mainReference?.sessionId
     const currentWorkspaceId = current === undefined
       ? undefined
-      : workspace.items.find(item => item.sessionIds.includes(current))?.workspaceId
+      : newSessionWorkspaces.find(item => item.sessionIds.includes(current))?.workspaceId
     const recent = workspace.phase === 'ready' && sessions.phase === 'ready'
-      ? recentWorkspace(workspace.items, sessions.byId)
+      ? recentWorkspace(newSessionWorkspaces, sessions.byId)
       : undefined
     const target = workspaceId ?? currentWorkspaceId ?? recent
     if (target === undefined) {

@@ -68,6 +68,8 @@ export interface HeroShellProps {
   t: HeroTranslate
   /** Authorized renderer for the hero brand-mark slot. */
   renderSlot: ConversationContentProps['renderSlot']
+  /** Open Phoenix's office panel from the home card. */
+  openOffice?: () => void
   /** Overlay content after the stack (modals). */
   children?: ReactNode
 }
@@ -130,7 +132,7 @@ function HeroFish({ hovering }: { hovering: boolean }) {
  * @param props - see {@link HeroShellProps}.
  * @returns the centered hero element tree.
  */
-export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
+export function HeroShell({ t, renderSlot, openOffice, children }: HeroShellProps) {
   const [hovering, setHovering] = useState(false)
   if (process.env.DSH_CLIENT_BRAND === 'phoenix') {
     return (
@@ -140,9 +142,7 @@ export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
             <p className={css.phoenixGreeting}>{t('hero.phoenixGreeting')}</p>
             <h1 className={css.phoenixHeadline}>{t('hero.phoenixHeadlineLead')} <span>Phoenix AI</span><br />{t('hero.phoenixHeadlineEnd')}</h1>
             <p className={css.phoenixDescription}>{t('hero.phoenixDescription')}</p>
-            <button className={css.phoenixStart} type="button" onClick={(event) => {
-              event.currentTarget.closest('[data-conversation-content]')?.querySelector<HTMLElement>('[data-composer-input]')?.focus()
-            }}>{t('hero.phoenixStart')} <span aria-hidden="true">→</span></button>
+            <button className={css.phoenixStart} type="button" onClick={openOffice}>{t('hero.phoenixStart')} <span aria-hidden="true">→</span></button>
           </div>
           <img className={css.phoenixDragon} src={phoenixDragon} alt="" aria-hidden="true" />
         </div>

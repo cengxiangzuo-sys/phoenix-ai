@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   SessionListState, SessionProjectionMap, SessionSummary,
 } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -99,6 +99,7 @@ const rowState = (options: {
   archivedFilter: options.archivedFilter ?? 'default' as const,
 })
 const noRows = rowState()
+afterEach(() => vi.unstubAllEnvs())
 
 describe('owningGroupKey', () => {
   it('returns the owning Workspace id or the Ungrouped key', () => {
@@ -252,6 +253,14 @@ describe('Session ordering', () => {
 })
 
 describe('deriveGroups', () => {
+  it('keeps the Phoenix office storage workspace out of sidebar navigation', () => {
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    const internal = { ...workspace('team', ['employee'], 'AI 办公室资料'), path: '/profile/bot/workspace' }
+    const groups = deriveGroups(list(summary('employee', 2), summary('regular', 1)),
+      [internal, workspace('regular', ['regular'])], noRows, noAttention, view(['regular']))
+    expect(groups.map(group => group.label)).toEqual(['regular'])
+    expect(groups[0]?.sessions.map(session => session.id)).toEqual([sid('regular')])
+  })
   it('keeps caller-supplied Workspace and sessionIds order', () => {
     const sessions = list(summary('newer', 20), summary('older', 10))
     const workspaces = [workspace('first', ['older', 'newer']), workspace('empty', [])]

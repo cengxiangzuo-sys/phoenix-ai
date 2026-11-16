@@ -421,13 +421,14 @@ function mount(
 }
 
 describe('Hero chrome', () => {
-  it('renders the Phoenix welcome card and focuses the native composer', () => {
+  it('renders the Phoenix welcome card and opens the AI office', () => {
     vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
     const renderSlot = vi.fn<(key: string, owner: object) => ReactNode>(() => null)
-    const view = render(<div data-conversation-content=""><HeroShell t={makeTranslate(zh, commonZh)} renderSlot={renderSlot as never} /><div role="textbox" contentEditable data-composer-input /></div>)
+    const openOffice = vi.fn()
+    const view = render(<HeroShell t={makeTranslate(zh, commonZh)} renderSlot={renderSlot as never} openOffice={openOffice} />)
     expect(view.getByText('Phoenix AI')).toBeTruthy()
-    fireEvent.click(view.getByRole('button', { name: /开始对话/ }))
-    expect(document.activeElement).toBe(view.getByRole('textbox'))
+    fireEvent.click(view.getByRole('button', { name: /AI 办公室/ }))
+    expect(openOffice).toHaveBeenCalledOnce()
     expect(renderSlot).not.toHaveBeenCalled()
   })
   it('renders the English preview badge through the hero locale seat', () => {
