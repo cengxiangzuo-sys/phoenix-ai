@@ -88,6 +88,10 @@ These limits define how brand presentation is supplied. They are current package
 - **Decorative rendering requires Canvas 2D** — unavailable contexts or reduced-motion preference leave the home clear.
 - **The browser title is independent** — `DSH_CLIENT_TITLE` selects title text at build time rather than through a UI slot.
 
+### Phoenix office
+
+The Phoenix profile presents the existing employee roster in an offline 3D office. Nameplates show saved names and job titles; the overview supports search, job filtering, employee cameras and additional floors. Creation, editing, models and conversations continue through the existing employee service. Idle drinking is decorative and is interrupted by work, blocked, waiting or unknown states. The sandboxed renderer receives display data only. Group seating and hall views are presentation controls, not task completion signals. See the [acceptance record](../../../apps/desktop/phoenix-office-acceptance.md) for verified operations and remaining integration work.
+
 <a id="dev-note"></a>
 ### Dev Note
 

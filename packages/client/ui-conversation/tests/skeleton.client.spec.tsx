@@ -355,6 +355,7 @@ function mount(
   }) => {
     if (options.headerOnly) return null
     const common: ConversationViewsProps = {
+      openOffice: vi.fn(),
       sessionId: SID,
       SessionProvider,
       useSession,

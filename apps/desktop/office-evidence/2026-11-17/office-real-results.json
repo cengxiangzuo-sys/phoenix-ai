@@ -1,0 +1,244 @@
+{
+  "labels": [
+    {
+      "name": "小橙",
+      "role": "总指挥",
+      "hidden": false
+    },
+    {
+      "name": "小研",
+      "role": "研究分析",
+      "hidden": false
+    },
+    {
+      "name": "小码",
+      "role": "开发工程师",
+      "hidden": false
+    },
+    {
+      "name": "小绘",
+      "role": "高级视觉设计师",
+      "hidden": false
+    },
+    {
+      "name": "小联",
+      "role": "运营经理",
+      "hidden": false
+    }
+  ],
+  "during": [
+    {
+      "id": "0",
+      "status": "idle",
+      "motion": "walking",
+      "position": [
+        -6.032000000000004,
+        0.007029115017608475,
+        -6.6
+      ],
+      "name": "小橙总指挥",
+      "main": true,
+      "trip": true,
+      "phase": "out",
+      "duration": 8.666666666666666,
+      "start": 40.08
+    },
+    {
+      "id": "1",
+      "status": "idle",
+      "motion": "idle",
+      "position": [
+        -7.6,
+        0,
+        -2.1999999999999997
+      ],
+      "name": "小研研究分析",
+      "main": false,
+      "trip": false
+    },
+    {
+      "id": "2",
+      "status": "working",
+      "motion": "working",
+      "position": [
+        -7.6,
+        0,
+        3.8
+      ],
+      "name": "小码开发工程师",
+      "main": false,
+      "trip": false
+    },
+    {
+      "id": "3",
+      "status": "idle",
+      "motion": "idle",
+      "position": [
+        4.6,
+        0,
+        -2.1999999999999997
+      ],
+      "name": "小绘高级视觉设计师",
+      "main": false,
+      "trip": false
+    },
+    {
+      "id": "4",
+      "status": "idle",
+      "motion": "idle",
+      "position": [
+        7.6,
+        0,
+        3.8
+      ],
+      "name": "小联运营经理",
+      "main": false,
+      "trip": false
+    }
+  ],
+  "drink": [
+    {
+      "id": "0",
+      "status": "idle",
+      "motion": "drinking",
+      "position": [
+        8.55,
+        0,
+        -6.25
+      ],
+      "name": "小橙总指挥",
+      "main": true,
+      "trip": false,
+      "phase": "drink"
+    },
+    {
+      "id": "1",
+      "status": "idle",
+      "motion": "idle",
+      "position": [
+        -7.6,
+        0,
+        -2.1999999999999997
+      ],
+      "name": "小研研究分析",
+      "main": false,
+      "trip": false
+    },
+    {
+      "id": "2",
+      "status": "working",
+      "motion": "working",
+      "position": [
+        -7.6,
+        0,
+        3.8
+      ],
+      "name": "小码开发工程师",
+      "main": false,
+      "trip": false
+    },
+    {
+      "id": "3",
+      "status": "idle",
+      "motion": "idle",
+      "position": [
+        4.6,
+        0,
+        -2.1999999999999997
+      ],
+      "name": "小绘高级视觉设计师",
+      "main": false,
+      "trip": false
+    },
+    {
+      "id": "4",
+      "status": "idle",
+      "motion": "idle",
+      "position": [
+        7.6,
+        0,
+        3.8
+      ],
+      "name": "小联运营经理",
+      "main": false,
+      "trip": false
+    }
+  ],
+  "interrupted": [
+    {
+      "id": "0",
+      "status": "working",
+      "motion": "walking",
+      "position": [
+        7.780000000000025,
+        0.0449939660503268,
+        -5.8999999999999995
+      ],
+      "name": "小橙总指挥",
+      "main": true,
+      "trip": true,
+      "duration": 6.250000000000002,
+      "start": 50.739966666666646
+    },
+    {
+      "id": "1",
+      "status": "idle",
+      "motion": "walking",
+      "position": [
+        -7.6,
+        0.0449939660503268,
+        -1.5280000000000142
+      ],
+      "name": "小研研究分析",
+      "main": false,
+      "trip": true,
+      "phase": "out",
+      "duration": 10.285714285714286,
+      "start": 50.819966666666645
+    },
+    {
+      "id": "2",
+      "status": "working",
+      "motion": "working",
+      "position": [
+        -7.6,
+        0,
+        3.8
+      ],
+      "name": "小码开发工程师",
+      "main": false,
+      "trip": false
+    },
+    {
+      "id": "3",
+      "status": "idle",
+      "motion": "idle",
+      "position": [
+        4.6,
+        0,
+        -2.1999999999999997
+      ],
+      "name": "小绘高级视觉设计师",
+      "main": false,
+      "trip": false
+    },
+    {
+      "id": "4",
+      "status": "idle",
+      "motion": "idle",
+      "position": [
+        7.6,
+        0,
+        3.8
+      ],
+      "name": "小联运营经理",
+      "main": false,
+      "trip": false
+    }
+  ],
+  "narrow": {
+    "width": 390,
+    "body": 390
+  },
+  "errors": []
+}
