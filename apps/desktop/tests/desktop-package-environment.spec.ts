@@ -393,3 +393,10 @@ it.each(['', '0', '9', 'invalid'])('rejects unsupported workflow ZIP choice %j',
       .toThrow('workflow ZIP compression must be 3 or 7')
   })
 })
+
+// Phoenix unsigned test builds do not depend on DeepSeek release infrastructure.
+it('allows Phoenix unsigned Windows builds without policy, but preserves signed validation', () => {
+  const environment = localMacOSPackageEnvironment({ DSH_CLIENT_BRAND: 'phoenix' })
+  expect(() => validateDesktopPackageEnvironment(environment, WINDOWS, { unsigned: true })).not.toThrow()
+  expect(() => validateDesktopPackageEnvironment(environment, WINDOWS, {})).toThrow()
+})
