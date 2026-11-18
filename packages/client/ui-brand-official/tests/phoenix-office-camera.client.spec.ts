@@ -10,14 +10,15 @@ function setup() {
   canvas.hasPointerCapture = () => true
   canvas.releasePointerCapture = vi.fn()
   // Execute the exact offline script shipped inside the sandboxed scene.
-  const install = new Function(`${cameraControlsSource}; return installOfficeCameraControls`)() as (canvas: HTMLCanvasElement, reset: HTMLButtonElement) => Camera
-  const camera = install(canvas, reset)
+  const install = new Function(`${cameraControlsSource}; return installOfficeCameraControls`)() as (canvas: HTMLCanvasElement, reset: HTMLButtonElement, onTap: () => void) => Camera
+  const onTap = vi.fn()
+  const camera = install(canvas, reset, onTap)
   const pointer = (type: string, x: number, y: number) => {
     const event = new MouseEvent(type, { clientX: x, clientY: y, button: 0 })
     Object.defineProperty(event, 'pointerId', { value: 1 })
     canvas.dispatchEvent(event)
   }
-  return { canvas, reset, camera, pointer }
+  return { canvas, reset, camera, pointer, onTap }
 }
 
 describe('Office camera gestures', () => {
@@ -54,4 +55,22 @@ describe('Office camera gestures', () => {
     expect(camera.yaw).toBe(initial.yaw)
     expect(camera.pitch).toBe(initial.pitch)
   })
+})
+
+it('selects on release without relying on browser click after pointer capture, tolerating small jitter', () => {
+  const { pointer, onTap } = setup()
+  pointer('pointerdown', 30, 30)
+  for (let i = 0; i < 12; i++) pointer('pointermove', 30 + i % 2, 30)
+  pointer('pointerup', 31, 30)
+  expect(onTap).toHaveBeenCalledTimes(1)
+  pointer('pointerdown', 30, 30)
+  pointer('pointermove', 70, 30)
+  pointer('pointerup', 70, 30)
+  expect(onTap).toHaveBeenCalledTimes(1)
+  pointer('pointerdown', 30, 30)
+  pointer('pointercancel', 30, 30)
+  expect(onTap).toHaveBeenCalledTimes(1)
+  pointer('pointerdown', 30, 30)
+  pointer('pointerup', 30, 30)
+  expect(onTap).toHaveBeenCalledTimes(2)
 })

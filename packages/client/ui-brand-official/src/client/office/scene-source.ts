@@ -117,7 +117,7 @@ let snapshot=null, selected='', focused=false, playing=!matchMedia('(prefers-red
 let elapsed=0,last=0,width=1,height=1,focusMix=0,roomMode='discussion';
 const resetCamera=document.createElement('button');resetCamera.className='camera-reset';resetCamera.textContent='重置视角';stage.append(resetCamera);
 const cameraHelp=document.createElement('span');cameraHelp.className='camera-help';cameraHelp.textContent='拖动旋转 · 滚轮缩放';stage.append(cameraHelp);
-const orbit=installOfficeCameraControls(canvas,resetCamera);
+const orbit=installOfficeCameraControls(canvas,resetCamera,pickEmployee);
 resetCamera.addEventListener('click',()=>{focused=false;send('overview')});
 const haloMat=new T.MeshBasicMaterial({color:0xffb363,side:T.DoubleSide,transparent:true,opacity:.9});
 function send(action,id){parent.postMessage({channel:'phoenix-office',action,id},'*')}
@@ -164,7 +164,17 @@ function frame(now){const dt=last?Math.min((now-last)/1000,.08):0;last=now;if(pl
   else{p.g.rotation.y=p.meeting?seatFacing(roomMode,p.seat):Math.PI;if(p.status==='working'&&!p.meeting)animateWork(p,elapsed+i*3);else if(p.speaking&&p.status==='working'){p.arms[1].rotation.x=-1.1+Math.sin(elapsed*2.7)*.22;p.arms[1].rotation.z=-.35}else if(p.status==='blocked')p.arms[1].rotation.x=-1.7;else if(p.status==='idle')p.head.rotation.y=Math.sin(elapsed*.65+i)*.12}
  });cameraFit();renderer.render(scene,camera);requestAnimationFrame(frame)
 }
-const ray=new T.Raycaster();canvas.addEventListener('click',e=>{if(orbit.dragged)return;const r=canvas.getBoundingClientRect();ray.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=ray.intersectObjects(employees.map(p=>p.g),true)[0];if(hit){let n=hit.object;while(n&&!employees.some(p=>p.g===n))n=n.parent;const p=employees.find(p=>p.g===n);if(p)send('select',p.id)}});
+const ray=new T.Raycaster();
+function pickEmployee(e){
+ const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+ ray.setFromCamera(new T.Vector2(x/r.width*2-1,-y/r.height*2+1),camera);
+ const hit=ray.intersectObjects(employees.map(p=>p.g),true)[0];
+ if(hit){let n=hit.object;while(n&&!employees.some(p=>p.g===n))n=n.parent;const p=employees.find(p=>p.g===n);if(p){send('select',p.id);return}}
+ // Small characters remain selectable around their projected torso, at any zoom.
+ let nearest=null,distance=24;
+ for(const p of employees){const v=new T.Vector3(p.g.position.x,1,p.g.position.z).project(camera);if(v.z<-1||v.z>1)continue;const d=Math.hypot((v.x+1)*r.width/2-x,(1-v.y)*r.height/2-y);if(d<distance){nearest=p;distance=d}}
+ if(nearest)send('select',nearest.id);
+}
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();document.querySelector('.loading').textContent='3D 画面已中断，可继续使用上方员工选择器';document.querySelector('.loading').hidden=false});
 window.addEventListener('message',receive);send('ready');requestAnimationFrame(frame);
 

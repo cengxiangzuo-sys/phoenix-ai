@@ -19,6 +19,7 @@ describe('Phoenix office', () => {
     const view = render(<PhoenixOffice onHome={() => {}} onOpenEmployee={() => {}} />)
     await waitFor(() => expect(view.getAllByText('小羽 · 研究助理').length).toBeGreaterThan(0))
     fireEvent.click(view.getByRole('button', { name: /创建员工/ }))
+    expect(view.getByRole('heading', { name: 'AI 办公室' }).closest('header')?.hasAttribute('data-window-drag')).toBe(true)
     const dialog = view.getByRole('dialog')
     fireEvent.change(dialog.querySelector('input[placeholder="例如：小羽"]')!, { target: { value: '小火' } })
     fireEvent.change(dialog.querySelector('input[placeholder="例如：研究助理"]')!, { target: { value: '设计师' } })
@@ -47,5 +48,10 @@ it('finds by job title and changes employee views across floors without sending 
   expect(view.getByLabelText('员工视角')).toBeTruthy()
   fireEvent.click(view.getByRole('button', { name: '开始对话 ↗' }))
   expect(onOpenEmployee).toHaveBeenCalledWith('session-5')
+  expect(calls).toEqual(['state'])
+  const frame = view.getByTitle('AI 办公室三维场景') as HTMLIFrameElement
+  fireEvent(window, new MessageEvent('message', { source: frame.contentWindow, origin: 'null', data: { channel: 'phoenix-office', action: 'select', id: 'bot-5' } }))
+  expect(view.getByRole('dialog', { name: '编辑员工' })).toBeTruthy()
+  expect((view.getByLabelText('姓名') as HTMLInputElement).value).toBe('员工5')
   expect(calls).toEqual(['state'])
 })

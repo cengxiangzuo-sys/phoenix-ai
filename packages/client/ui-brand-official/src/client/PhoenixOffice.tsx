@@ -109,7 +109,7 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
   const selectedSessionId = editing === 'new' ? undefined : editing?.sessionId
 
   return <main className={css.page}>
-    <header className={css.header}>
+    <header className={css.header} data-window-drag>
       <div className={css.heading}>
         <button type="button" className={css.back} onClick={onHome} aria-label="返回主页">←</button>
         <div><span className={css.eyebrow}>PHOENIX · WORKSPACE</span><h1>AI 办公室</h1></div>
@@ -141,7 +141,7 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
         {selectedBot ? <><div><strong>{selectedBot.name}</strong><span>{selectedBot.role || '未设置岗位'} · {connectionError ? '状态未知' : statusFor(selectedBot, state).label}</span></div><button className={css.secondary} onClick={() => openEditor(selectedBot)}>员工资料</button><button className={css.primary} disabled={!selectedBot.sessionId} onClick={() => { if (selectedBot.sessionId) onOpenEmployee(selectedBot.sessionId) }}>开始对话 ↗</button></> : <p>从上方选择员工，或点击办公室中的姓名牌查看资料与会话</p>}
       </div>
       <section className={css.scene} aria-label="可视化办公室">
-        <OfficeScene people={visiblePeople} selected={selected} focused={focused} playing={playing} floor={visibleFloor} hall={hall} onOverview={() => setFocused(false)} onSelect={selectEmployee} onCreate={() => { if (state && !state.readOnly) openEditor('new') }} />
+        <OfficeScene people={visiblePeople} selected={selected} focused={focused} playing={playing} floor={visibleFloor} hall={hall} onOverview={() => setFocused(false)} onSelect={(id) => { selectEmployee(id); const bot = staff.find(item => item.id === id); if (bot) openEditor(bot) }} onCreate={() => { if (state && !state.readOnly) openEditor('new') }} />
       </section>
       <p className={css.hint}>姓名与岗位来自员工资料。工位按岗位分区，动作是状态示意；喝水仅在待命时出现。大厅席位用于查看群成员，不代表任务已交付。</p>
       {state === null && !connectionError && <p className={css.loading}>正在连接办公室…</p>}

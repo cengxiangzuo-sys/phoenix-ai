@@ -1,6 +1,6 @@
 /** Input controller for the isolated scene. Rotation and zoom never translate the orbit center. */
 export const cameraControlsSource = `
-function installOfficeCameraControls(canvas, resetButton) {
+function installOfficeCameraControls(canvas, resetButton, onTap = () => {}) {
   const initial = { yaw: Math.atan2(20, 27), pitch: Math.atan2(24, Math.hypot(20, 27)), zoom: 1.04 };
   const view = { ...initial, dragged: false, reset() { Object.assign(view, initial); } };
   let pointer = null;
@@ -9,7 +9,7 @@ function installOfficeCameraControls(canvas, resetButton) {
   canvas.addEventListener('pointerdown', event => {
     if (event.button !== 0 || pointer) return;
     view.dragged = false;
-    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, distance: 0 };
+    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY };
     canvas.setPointerCapture(event.pointerId);
     canvas.classList.add('dragging');
     canvas.focus({ preventScroll: true });
@@ -17,18 +17,20 @@ function installOfficeCameraControls(canvas, resetButton) {
   canvas.addEventListener('pointermove', event => {
     if (!pointer || pointer.id !== event.pointerId) return;
     const dx = event.clientX - pointer.x, dy = event.clientY - pointer.y;
-    pointer.distance += Math.hypot(dx, dy);
+    const distance = Math.hypot(event.clientX - pointer.startX, event.clientY - pointer.startY);
     pointer.x = event.clientX; pointer.y = event.clientY;
-    if (pointer.distance < 4) return;
+    if (!view.dragged && distance < 8) return;
     view.dragged = true;
     view.yaw = (view.yaw - dx * .006) % (Math.PI * 2);
     view.pitch = clamp(view.pitch + dy * .004, .35, 1.3);
   });
   function release(event) {
     if (!pointer || pointer.id !== event.pointerId) return;
+    const tap = event.type === 'pointerup' && !view.dragged;
     pointer = null;
     canvas.classList.remove('dragging');
     if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    if (tap) onTap(event);
   }
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
