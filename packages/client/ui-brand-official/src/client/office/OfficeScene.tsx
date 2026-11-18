@@ -12,6 +12,7 @@ type Props = {
   hall: boolean
   onSelect: (id: string) => void
   onCreate: () => void
+  onOverview: () => void
 }
 
 /** Opaque-origin rendering frame, isolated from API credentials and persisted user data. */
@@ -33,6 +34,7 @@ export function OfficeScene(props: Props) {
       const data: unknown = event.data
       if (typeof data !== 'object' || data === null || !('channel' in data) || data.channel !== 'phoenix-office' || !('action' in data)) return
       if (data.action === 'ready') publish()
+      else if (data.action === 'overview') current.current.onOverview()
       else if (data.action === 'create') current.current.onCreate()
       else if (data.action === 'select' && 'id' in data && typeof data.id === 'string' && current.current.people.some(p => p.id === data.id)) current.current.onSelect(data.id)
     }
