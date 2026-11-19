@@ -23,7 +23,9 @@ describe('Office water break return route', () => {
       expect(returning.at(-1)).toEqual(home)
       // Every leg follows a corridor axis; the old return skipped the rear cross aisle.
       for (let i = 1; i < returning.length; i++) {
-        expect(returning[i][0] === returning[i - 1][0] || returning[i][1] === returning[i - 1][1]).toBe(true)
+        const current = returning[i]!
+        const previous = returning[i - 1]!
+        expect(current[0] === previous[0] || current[1] === previous[1]).toBe(true)
       }
     }
     expect(sceneSource).toContain('const r=p.break.returnRoute;')
