@@ -113,3 +113,31 @@ it('opens separate native room histories and can stop one room without sending a
   expect(view.queryByText('来自room-a')).toBeNull()
   expect(calls.some(call => call.endpoint === 'send')).toBe(false)
 })
+
+it('saves the group administrator, reply mode and public notice through the native room endpoint', async () => {
+  const room = { id: 'room-1', name: '狼人杀', members: ['judge', 'player'], admin: null as string | null, mode: 'everyone', notice: '' }
+  const roster = { bots: [{ id: 'judge', name: '法官', role: '主持人' }, { id: 'player', name: '1号', role: '玩家' }], rooms: [room], mainBotIds: [], models: [], defaultModel: null, permissions: { options: [{ value: 'read-only', name: '只读' }], defaultPreset: 'workspace-write' }, work: { bots: {} } }
+  const calls: Array<{ endpoint: string; payload: Record<string, unknown> }> = []
+  vi.stubGlobal('fetch', vi.fn(async (_url: string, options: RequestInit) => {
+    const input = JSON.parse(String(options.body)) as { endpoint: string; payload: Record<string, unknown> }
+    calls.push(input)
+    if (input.endpoint === 'update-room') Object.assign(room, { admin: input.payload.admin, mode: input.payload.mode, notice: input.payload.notice })
+    const value = input.endpoint === 'state' ? roster : input.endpoint === 'room-chat' ? { items: [], cursor: null, running: false } : { room }
+    return { ok: true, json: async () => ({ ok: true, value }) }
+  }))
+  const view = render(<PhoenixOffice onHome={() => {}} onOpenEmployee={() => {}} />)
+  await waitFor(() => expect(view.getByRole('option', { name: '狼人杀' })).toBeTruthy())
+  fireEvent.change(view.getByLabelText('查看群聊'), { target: { value: 'room-1' } })
+  fireEvent.click(view.getByRole('button', { name: '打开群聊 ↗' }))
+  fireEvent.click(view.getByRole('button', { name: '群设置' }))
+  const dialog = view.getByRole('dialog', { name: '群设置' })
+  fireEvent.change(dialog.querySelector('select')!, { target: { value: 'judge' } })
+  fireEvent.change(dialog.querySelectorAll('select')[1]!, { target: { value: 'admin' } })
+  fireEvent.change(dialog.querySelector('textarea')!, { target: { value: '只有被点名者发言；隐藏身份不得公开。' } })
+  fireEvent.change(dialog.querySelectorAll('select')[2]!, { target: { value: 'read-only' } })
+  fireEvent.click(view.getByRole('button', { name: '保存群设置' }))
+  await waitFor(() => expect(view.queryByRole('dialog', { name: '群设置' })).toBeNull())
+  expect(calls.find(call => call.endpoint === 'update-room')?.payload).toEqual({ id: 'room-1', admin: 'judge', mode: 'admin', notice: '只有被点名者发言；隐藏身份不得公开。', permission: 'read-only' })
+  fireEvent.click(view.getByRole('button', { name: '群设置' }))
+  expect((view.getByRole('dialog', { name: '群设置' }).querySelector('textarea') as HTMLTextAreaElement).value).toBe(room.notice)
+})

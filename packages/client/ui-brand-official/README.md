@@ -92,6 +92,8 @@ These limits define how brand presentation is supplied. They are current package
 
 The Phoenix profile presents the existing employee roster in an offline 3D office. The scene fills the available workspace. Drag to orbit the center, scroll to zoom, and use Reset view to restore the overview; dragging does not pan or select an employee. Clicking an employee or nameplate opens their existing profile; the top selector only changes the camera. The office header uses the native window drag region. Nameplates show saved names and job titles; the overview supports search, job filtering, employee cameras and additional floors. Creation, editing, models and conversations continue through the existing employee service. Idle drinking is decorative and is interrupted by work, blocked, waiting or unknown states. The sandboxed renderer receives display data only. Group seating and hall views are presentation controls, not task completion signals. See the [acceptance record](../../../apps/desktop/phoenix-office-acceptance.md) for verified operations and remaining integration work.
 
+The office room chat exposes the installed Bot plugin's `update-room` settings for administrator, speaking mode, public notice, and room permission. It saves into the native room; no Phoenix-specific copy of these settings is stored. Notices are public to room members and must not contain private game roles.
+
 <a id="dev-note"></a>
 ### Dev Note
 

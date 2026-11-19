@@ -21,10 +21,15 @@ export type OfficeState = {
     label?: string
     needsKey?: boolean }>
   defaultModel: string | null
+  permissions?: { options: Array<{ value: string; name: string }>; defaultPreset?: string } | null
   readOnly?: string | null
   rooms?: Array<{ id: string
     name: string
     members: string[]
+    admin?: string | null
+    mode?: 'admin' | 'everyone'
+    notice?: string
+    permission?: string
     sessionId?: string }>
   work?: { bots?: Record<string, { tool?: string
     roomId?: string }>

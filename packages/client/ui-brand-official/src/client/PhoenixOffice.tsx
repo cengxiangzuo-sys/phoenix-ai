@@ -33,13 +33,18 @@ type RoomItem = { id: string; kind: 'user' | 'bot' | 'event'; text?: string; nam
 type RoomCursor = { part: number; beforeSeq?: number } | null
 type RoomPage = { items: RoomItem[]; cursor: RoomCursor; running: boolean; speaking?: string | null }
 
-function OfficeRoomChat({ room, bots, onBack }: { room: Room; bots: Bot[]; onBack: () => void }) {
+function OfficeRoomChat({ room, bots, permissions, onBack, onChanged }: { room: Room; bots: Bot[]; permissions: OfficeState['permissions']; onBack: () => void; onChanged: () => Promise<void> }) {
   const [items, setItems] = useState<RoomItem[]>([])
   const [cursor, setCursor] = useState<RoomCursor | undefined>(undefined)
   const [running, setRunning] = useState(false)
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [admin, setAdmin] = useState(room.admin ?? '')
+  const [mode, setMode] = useState(room.mode ?? 'admin')
+  const [notice, setNotice] = useState(room.notice ?? '')
+  const [permission, setPermission] = useState(room.permission ?? '')
 
   const refresh = useCallback(async () => {
     const page = await botRequest<RoomPage>('room-chat', { roomId: room.id })
@@ -103,10 +108,21 @@ function OfficeRoomChat({ room, bots, onBack }: { room: Room; bots: Bot[]; onBac
     finally { setBusy(false) }
   }
 
+  const saveSettings = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      await botRequest('update-room', { id: room.id, admin, mode, notice: notice.trim(), ...(permissions ? { permission } : {}) })
+      await onChanged()
+      setSettingsOpen(false)
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '保存群设置失败') }
+    finally { setBusy(false) }
+  }
+
   return <main className={css.page}>
     <header className={css.header} data-window-drag>
       <div className={css.heading}><button type="button" className={css.back} onClick={onBack} aria-label="返回 AI 办公室">←</button><div><span className={css.eyebrow}>AI 办公室 · 会议室</span><h1>{room.name}</h1></div></div>
-      <div className={css.headerActions}>{running && <span className={css.live}>员工正在讨论</span>}<button type="button" className={css.secondary} onClick={() => { void stop() }} disabled={!running || busy}>停止群聊任务</button></div>
+      <div className={css.headerActions}>{running && <span className={css.live}>员工正在讨论</span>}<button type="button" className={css.secondary} onClick={() => setSettingsOpen(true)} disabled={busy}>群设置</button><button type="button" className={css.secondary} onClick={() => { void stop() }} disabled={!running || busy}>停止群聊任务</button></div>
     </header>
     <div className={css.roomMembers}>{room.members.map((id) => { const bot = bots.find(item => item.id === id); return bot && <button type="button" key={id} className={css.secondary} onClick={() => setDraft(current => `${current}${current && !/\s$/.test(current) ? ' ' : ''}@${bot.name} `)}>@{bot.name} · {bot.role}</button> })}</div>
     <div className={css.roomHistory} aria-label="群聊消息">
@@ -124,6 +140,22 @@ function OfficeRoomChat({ room, bots, onBack }: { room: Room; bots: Bot[]; onBac
       <input aria-label="群聊消息" value={draft} onChange={event => setDraft(event.target.value)} placeholder="输入任务，或点击上方 @ 指定员工" />
       <button type="submit" className={css.primary} disabled={!draft.trim() || busy}>发送</button>
     </form>
+    {settingsOpen && <div className={css.overlay} onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !busy) setSettingsOpen(false)
+    }}>
+      <section className={css.dialog} role="dialog" aria-modal="true" aria-label="群设置">
+        <div className={css.dialogHead}><h2>群设置</h2>
+          <button type="button" className={css.close} onClick={() => setSettingsOpen(false)} disabled={busy} aria-label="关闭">×</button>
+        </div>
+        <label>管理员<select value={admin} onChange={event => setAdmin(event.target.value)}><option value="">不指定</option>{room.members.map((id) => { const bot = bots.find(item => item.id === id); return bot && <option key={id} value={id}>{bot.name}</option> })}</select></label>
+        <label>发言模式<select value={mode} onChange={event => setMode(event.target.value as 'admin' | 'everyone')}><option value="admin">管理员先回应</option><option value="everyone">成员依次回应</option></select></label>
+        <label>群公告<textarea value={notice} onChange={event => setNotice(event.target.value)} rows={4} maxLength={2000} placeholder="所有群成员都会看到的公开规则" /></label>
+        {permissions && <label>群内访问权限<select value={permission} onChange={event => setPermission(event.target.value)}><option value="">沿用员工权限</option>{permissions.options.map(option => <option key={option.value} value={option.value}>{option.name}</option>)}</select></label>}
+        <p className={css.hint}>公告是公开信息。请勿在此填写玩家的隐藏身份。</p>
+        {error && <p className={css.formError} role="alert">{error}</p>}
+        <div className={css.dialogActions}><button type="button" className={css.primary} onClick={() => { void saveSettings() }} disabled={busy}>{busy ? '保存中…' : '保存群设置'}</button></div>
+      </section>
+    </div>}
   </main>
 }
 
@@ -244,7 +276,7 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
   const selectedSessionId = editing === 'new' ? undefined : editing?.sessionId
   const chatRoom = state?.rooms?.find(room => room.id === chatRoomId)
 
-  if (chatRoom) return <OfficeRoomChat key={chatRoom.id} room={chatRoom} bots={staff} onBack={() => setChatRoomId('')} />
+  if (chatRoom) return <OfficeRoomChat key={chatRoom.id} room={chatRoom} bots={staff} permissions={state?.permissions} onBack={() => setChatRoomId('')} onChanged={refresh} />
 
   return <main className={css.page}>
     <header className={css.header} data-window-drag>
