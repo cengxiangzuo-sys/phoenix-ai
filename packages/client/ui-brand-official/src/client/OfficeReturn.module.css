@@ -1,0 +1,4 @@
+.back{display:inline-flex;align-items:center;gap:7px;max-width:150px;padding:6px 9px;border:1px solid var(--dsw-alias-border-l3);border-radius:9px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
+.back:hover{background:var(--dsw-alias-interactive-bg-hover-solid)}
+.back:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+@media(max-width:560px){.back span{display:none}}

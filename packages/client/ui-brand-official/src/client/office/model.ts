@@ -6,6 +6,7 @@ export type OfficeBot = {
   role: string
   instructions?: string
   model?: string
+  workDir?: string
   waiting?: boolean
   blocked?: unknown
   preview?: string

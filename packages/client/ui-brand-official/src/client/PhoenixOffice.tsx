@@ -39,6 +39,11 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
   const [role, setRole] = useState('')
   const [instructions, setInstructions] = useState('')
   const [model, setModel] = useState('')
+  const [workDir, setWorkDir] = useState('')
+  const [folderPicker, setFolderPicker] = useState<Array<{ path: string; title: string }> | null>(null)
+  const [roomEditor, setRoomEditor] = useState(false)
+  const [roomName, setRoomName] = useState('')
+  const [roomMembers, setRoomMembers] = useState<string[]>([])
   const [selected, setSelected] = useState('')
   const [search, setSearch] = useState('')
   const [job, setJob] = useState('')
@@ -70,6 +75,7 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
     setRole(bot === 'new' ? '' : bot.role)
     setInstructions(bot === 'new' ? '' : bot.instructions ?? '')
     setModel(bot === 'new' ? state?.defaultModel ?? '' : bot.model ?? '')
+    setWorkDir(bot === 'new' ? '' : bot.workDir ?? '')
     setError(null)
   }
 
@@ -78,7 +84,7 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
     setBusy(true)
     setError(null)
     try {
-      const payload = { name: name.trim(), role: role.trim(), instructions: instructions.trim(), ...(model ? { model } : {}) }
+      const payload = { name: name.trim(), role: role.trim(), instructions: instructions.trim(), workDir, ...(model ? { model } : {}) }
       if (editing === 'new') await botRequest('create-bot', payload)
       else await botRequest('update-bot', { id: editing.id, ...payload })
       setEditing(null)
@@ -88,6 +94,32 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
     } finally {
       setBusy(false)
     }
+  }
+
+  const chooseFolder = async () => {
+    setError(null)
+    try {
+      const folders = await botRequest<{ picker: string | null; folders: Array<{ path: string; title: string }> }>('folders')
+      if (folders.picker === 'native') {
+        const picked = await botRequest<string | null>('folder-pick')
+        if (picked) setWorkDir(picked)
+      } else setFolderPicker(folders.folders)
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '无法选择文件夹') }
+  }
+
+  const createRoom = async () => {
+    if (!roomName.trim() || roomMembers.length === 0) return
+    setBusy(true)
+    setError(null)
+    try {
+      const room = await botRequest<{ id: string; sessionId?: string }>('create-room', { name: roomName.trim(), members: roomMembers, greet: false })
+      setRoomEditor(false)
+      setRoomName('')
+      setRoomMembers([])
+      await refresh()
+      setRoomId(room.id)
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '创建群聊失败') }
+    finally { setBusy(false) }
   }
 
   const staff = state?.bots ?? []
@@ -134,6 +166,7 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
       <div className={css.sceneToolbar}>
         <label>楼层 <select aria-label="办公室楼层" value={visibleFloor} onChange={(event) => { setFloor(Number(event.target.value)); setFocused(false) }}>{Array.from({ length: floorCount }, (_,i) => <option key={i} value={i}>{i+1} 层</option>)}</select></label>
         <label>群聊 <select aria-label="查看群聊" value={roomId} onChange={(event) => { setRoomId(event.target.value); setHall(false); setFocused(false) }}><option value="">个人工位</option>{state?.rooms?.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label>
+        <button type="button" className={css.secondary} onClick={() => { setError(null); setRoomEditor(true) }} disabled={!state || !!state.readOnly || staff.length === 0}>＋ 创建群聊</button>
         {activeRoom && <><button className={css.secondary} onClick={() => setHall(!hall)}>{hall ? '查看会议室' : '查看大厅席位'}</button><button className={css.secondary} disabled={!activeRoom.sessionId} onClick={() => { if (activeRoom.sessionId) onOpenEmployee(activeRoom.sessionId) }}>打开群聊 ↗</button></>}
       </div>
       {connectionError && <div className={css.error} role="alert">{connectionError} · 画面状态暂不可确认 <button onClick={() => { void refresh() }}>重试</button></div>}
@@ -157,6 +190,9 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
         <label>岗位职称<input value={role} onChange={event => setRole(event.target.value)} maxLength={24} placeholder="例如：研究助理" /></label>
         <label>工作指令<textarea value={instructions} onChange={event => setInstructions(event.target.value)} rows={5} placeholder="说明这位员工负责什么、怎样工作…" /></label>
         <label>模型<select value={model} onChange={event => setModel(event.target.value)}><option value="">使用默认模型</option>{state?.models.map(item => <option key={item.ref} value={item.ref}>{item.label ?? item.name ?? item.ref}{item.needsKey ? ' · 需要凭据' : ''}</option>)}</select></label>
+        <label>工作资料文件夹<input value={workDir} onChange={event => setWorkDir(event.target.value)} placeholder="使用办公室默认资料夹" /></label>
+        <button type="button" className={css.secondary} onClick={() => { void chooseFolder() }}>选择文件夹…</button>
+        {folderPicker !== null && <div className={css.folderChoices}><button type="button" onClick={() => { setWorkDir(''); setFolderPicker(null) }}>使用默认资料夹</button>{folderPicker.map(folder => <button type="button" key={folder.path} onClick={() => { setWorkDir(folder.path); setFolderPicker(null) }}>{folder.title} · {folder.path}</button>)}<button type="button" onClick={() => setFolderPicker(null)}>关闭</button></div>}
         <p className={css.hint}>沿用现有模型与凭据。新员工创建后可能使用所选模型发送一次问候，产生相应模型用量。</p>
         {error && <p className={css.formError} role="alert">{error}</p>}
         <div className={css.dialogActions}>
@@ -168,6 +204,17 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
             {busy ? '保存中…' : editing === 'new' ? '创建员工' : '保存资料'}
           </button>
         </div>
+      </section>
+    </div>}
+    {roomEditor && <div className={css.overlay} onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !busy) setRoomEditor(false)
+    }}>
+      <section className={css.dialog} role="dialog" aria-modal="true" aria-label="创建群聊">
+        <div className={css.dialogHead}><h2>创建群聊</h2><button type="button" className={css.close} onClick={() => setRoomEditor(false)} disabled={busy} aria-label="关闭">×</button></div>
+        <label>群聊名称<input value={roomName} onChange={event => setRoomName(event.target.value)} maxLength={40} autoFocus /></label>
+        <fieldset className={css.members}><legend>选择员工</legend>{staff.map(bot => <label key={bot.id}><input type="checkbox" checked={roomMembers.includes(bot.id)} onChange={event => setRoomMembers(current => event.target.checked ? [...current, bot.id] : current.filter(id => id !== bot.id))} />{bot.name} · {bot.role}</label>)}</fieldset>
+        {error && <p className={css.formError} role="alert">{error}</p>}
+        <div className={css.dialogActions}><button type="button" className={css.primary} disabled={busy || !roomName.trim() || roomMembers.length === 0} onClick={() => { void createRoom() }}>{busy ? '创建中…' : '创建并进入会议室'}</button></div>
       </section>
     </div>}
   </main>

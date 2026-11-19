@@ -55,3 +55,30 @@ it('finds by job title and changes employee views across floors without sending 
   expect((view.getByLabelText('姓名') as HTMLInputElement).value).toBe('员工5')
   expect(calls).toEqual(['state'])
 })
+
+it('creates a group without a paid greeting and saves an employee working folder', async () => {
+  const roster = { bots: [{ id: 'bot-1', sessionId: 'session-1', name: '小羽', role: '研究助理' }], rooms: [] as Array<{ id: string; name: string; members: string[]; sessionId: string }>, mainBotIds: [], models: [], defaultModel: null, work: { bots: {} } }
+  const calls: Array<{ endpoint: string; payload: Record<string, unknown> }> = []
+  vi.stubGlobal('fetch', vi.fn(async (_url: string, options: RequestInit) => {
+    const input = JSON.parse(String(options.body)) as { endpoint: string; payload: Record<string, unknown> }
+    calls.push(input)
+    if (input.endpoint === 'create-room') roster.rooms.push({ id: 'room-1', name: String(input.payload.name), members: input.payload.members as string[], sessionId: 'group-session' })
+    return { ok: true, json: async () => ({ ok: true, value: input.endpoint === 'state' ? roster : input.endpoint === 'folders' ? { picker: 'native', folders: [] } : input.endpoint === 'folder-pick' ? '/Projects/Research' : { id: 'room-1' } }) }
+  }))
+  const view = render(<PhoenixOffice onHome={() => {}} onOpenEmployee={() => {}} />)
+  await waitFor(() => expect((view.getByRole('button', { name: '＋ 创建群聊' }) as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(view.getByRole('button', { name: '＋ 创建群聊' }))
+  const group = view.getByRole('dialog', { name: '创建群聊' })
+  fireEvent.change(group.querySelector('input[maxlength="40"]')!, { target: { value: '研究组' } })
+  fireEvent.click(group.querySelector('input[type="checkbox"]')!)
+  fireEvent.click(view.getByRole('button', { name: '创建并进入会议室' }))
+  await waitFor(() => expect((view.getByLabelText('查看群聊') as HTMLSelectElement).value).toBe('room-1'))
+  expect(calls.find(call => call.endpoint === 'create-room')?.payload).toEqual({ name: '研究组', members: ['bot-1'], greet: false })
+  fireEvent.change(view.getByLabelText('员工视角'), { target: { value: 'bot-1' } })
+  fireEvent.click(view.getByRole('button', { name: '员工资料' }))
+  expect(view.getByRole('dialog', { name: '编辑员工' })).toBeTruthy()
+  fireEvent.click(view.getByRole('button', { name: '选择文件夹…' }))
+  await waitFor(() => expect((view.getByLabelText('工作资料文件夹') as HTMLInputElement).value).toBe('/Projects/Research'))
+  fireEvent.click(view.getByRole('button', { name: '保存资料' }))
+  await waitFor(() => expect(calls.find(call => call.endpoint === 'update-bot')?.payload.workDir).toBe('/Projects/Research'))
+})

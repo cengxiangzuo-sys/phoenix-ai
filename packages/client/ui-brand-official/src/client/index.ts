@@ -4,6 +4,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
@@ -12,6 +13,7 @@ import { OfficialBrandMark, OfficialBrandName } from './Brand.tsx'
 import { PhoenixBrandMark, PhoenixBrandName } from './PhoenixBrand.tsx'
 import { installPhoenixTheme } from './PhoenixTheme.ts'
 import { PhoenixOffice, PhoenixOfficeIcon } from './PhoenixOffice.tsx'
+import { OfficeReturn } from './OfficeReturn.tsx'
 
 /** Required service: the UI slot registry. */
 export const inject = ['slots']
@@ -29,6 +31,10 @@ export function apply(ctx: ClientContext): void {
         yield ctx.slots.register({ name: 'sidebar.brand.name' }, PhoenixBrandName)
       }))
     ctx.inject(['layout', 'uiWorkspace'], (scope) => {
+      scope.slots.inject('conversation.header.leading', () => scope.slots.register({
+        name: 'conversation.header.leading',
+        inject: () => ({ onClick: () => scope.layout.selectPanel('phoenix-office' as MainPanelId) }),
+      }, OfficeReturn))
       scope.slots.inject('main', () => scope.slots.register({
         name: 'main', key: 'phoenix-office',
         inject: () => ({
