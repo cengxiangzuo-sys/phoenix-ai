@@ -22,7 +22,7 @@ jobs:
       DSH_TELEMETRY_DISABLED: '1'
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v5.0.0
