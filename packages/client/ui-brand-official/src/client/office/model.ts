@@ -45,6 +45,7 @@ export type OfficePerson = {
   status: 'blocked' | 'waiting' | 'working' | 'idle' | 'unknown'
   meeting: boolean
   speaking: boolean
+  activeRoomId?: string
 }
 
 function roleStyle(role: string): { zone: 0 | 1 | 2 | 3
@@ -76,12 +77,18 @@ export function officePeople(state: OfficeState | null, stale: boolean, roomId: 
     if (main) commander = true
     const index = main ? 0 : counts[style.zone]++
     const work = state.work?.bots?.[bot.id]
-    const status = stale ? 'unknown' : bot.blocked ? 'blocked' : bot.waiting ? 'waiting' : work ? 'working' : 'idle'
-    // A personal or another group's active task keeps its own position.
-    const meeting = !!room?.members.includes(bot.id) && (!work || work.roomId === roomId)
+    const activeRoomId = Object.entries(state.work?.rooms ?? {})
+      .filter(([, members]) => members.some(member => member.botId === bot.id))
+      .sort(([leftId, left], [rightId, right]) => {
+        const speaking = (members: typeof left) => Number(members.some(member => member.botId === bot.id && member.speaking))
+        return speaking(right) - speaking(left) || leftId.localeCompare(rightId)
+      })[0]?.[0] ?? work?.roomId
+    const status = stale ? 'unknown' : bot.blocked ? 'blocked' : bot.waiting ? 'waiting' : work || activeRoomId ? 'working' : 'idle'
+    // One employee has one physical location even when several rooms include them.
+    const meeting = !!room?.members.includes(bot.id) && (activeRoomId === roomId || activeRoomId === undefined && !work)
     const speaking = !!state.work?.rooms?.[roomId]?.some(item => item.botId === bot.id && item.speaking)
     return { id: bot.id, name: bot.name, role: bot.role || '未设置岗位', ...style, main,
       floor: main ? 0 : Math.floor(index / 4), station: style.zone * 4 + index % 4,
-      status, meeting, speaking }
+      status, meeting, speaking, ...(activeRoomId ? { activeRoomId } : {}) }
   })
 }

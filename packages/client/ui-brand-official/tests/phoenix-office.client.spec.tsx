@@ -63,7 +63,7 @@ it('creates a group without a paid greeting and saves an employee working folder
     const input = JSON.parse(String(options.body)) as { endpoint: string; payload: Record<string, unknown> }
     calls.push(input)
     if (input.endpoint === 'create-room') roster.rooms.push({ id: 'room-1', name: String(input.payload.name), members: input.payload.members as string[], sessionId: 'group-session' })
-    return { ok: true, json: async () => ({ ok: true, value: input.endpoint === 'state' ? roster : input.endpoint === 'folders' ? { picker: 'native', folders: [] } : input.endpoint === 'folder-pick' ? '/Projects/Research' : { id: 'room-1' } }) }
+    return { ok: true, json: async () => ({ ok: true, value: input.endpoint === 'state' ? roster : input.endpoint === 'room-chat' ? { items: [], cursor: null, running: false } : input.endpoint === 'folders' ? { picker: 'native', folders: [] } : input.endpoint === 'folder-pick' ? '/Projects/Research' : { id: 'room-1' } }) }
   }))
   const view = render(<PhoenixOffice onHome={() => {}} onOpenEmployee={() => {}} />)
   await waitFor(() => expect((view.getByRole('button', { name: '＋ 创建群聊' }) as HTMLButtonElement).disabled).toBe(false))
@@ -72,6 +72,8 @@ it('creates a group without a paid greeting and saves an employee working folder
   fireEvent.change(group.querySelector('input[maxlength="40"]')!, { target: { value: '研究组' } })
   fireEvent.click(group.querySelector('input[type="checkbox"]')!)
   fireEvent.click(view.getByRole('button', { name: '创建并进入会议室' }))
+  await waitFor(() => expect(view.getByRole('heading', { name: '研究组' })).toBeTruthy())
+  fireEvent.click(view.getByRole('button', { name: '返回 AI 办公室' }))
   await waitFor(() => expect((view.getByLabelText('查看群聊') as HTMLSelectElement).value).toBe('room-1'))
   expect(calls.find(call => call.endpoint === 'create-room')?.payload).toEqual({ name: '研究组', members: ['bot-1'], greet: false })
   fireEvent.change(view.getByLabelText('员工视角'), { target: { value: 'bot-1' } })
@@ -81,4 +83,33 @@ it('creates a group without a paid greeting and saves an employee working folder
   await waitFor(() => expect((view.getByLabelText('工作资料文件夹') as HTMLInputElement).value).toBe('/Projects/Research'))
   fireEvent.click(view.getByRole('button', { name: '保存资料' }))
   await waitFor(() => expect(calls.find(call => call.endpoint === 'update-bot')?.payload.workDir).toBe('/Projects/Research'))
+})
+
+it('opens separate native room histories and can stop one room without sending a model request', async () => {
+  const roster = { bots: [{ id: 'bot-1', name: '小羽', role: '研究助理' }], rooms: [
+    { id: 'room-a', name: '策划会', members: ['bot-1'] },
+    { id: 'room-b', name: '资料会', members: ['bot-1'] },
+  ], mainBotIds: [], models: [], defaultModel: null, work: { bots: {} } }
+  const calls: Array<{ endpoint: string; payload: Record<string, unknown> }> = []
+  vi.stubGlobal('fetch', vi.fn(async (_url: string, options: RequestInit) => {
+    const input = JSON.parse(String(options.body)) as { endpoint: string; payload: Record<string, unknown> }
+    calls.push(input)
+    const value = input.endpoint === 'state' ? roster : input.endpoint === 'room-chat'
+      ? { items: [{ id: 'one', kind: 'bot', name: input.payload.roomId === 'room-a' ? '策划员工' : '资料员工', text: `来自${input.payload.roomId}` }], cursor: null, running: input.payload.roomId === 'room-a' }
+      : true
+    return { ok: true, json: async () => ({ ok: true, value }) }
+  }))
+  const view = render(<PhoenixOffice onHome={() => {}} onOpenEmployee={() => {}} />)
+  await waitFor(() => expect(view.getByRole('option', { name: '策划会' })).toBeTruthy())
+  fireEvent.change(view.getByLabelText('查看群聊'), { target: { value: 'room-a' } })
+  fireEvent.click(view.getByRole('button', { name: '打开群聊 ↗' }))
+  await waitFor(() => expect(view.getByText('来自room-a')).toBeTruthy())
+  fireEvent.click(view.getByRole('button', { name: '停止群聊任务' }))
+  await waitFor(() => expect(calls.some(call => call.endpoint === 'stop-room-work' && call.payload.roomId === 'room-a')).toBe(true))
+  fireEvent.click(view.getByRole('button', { name: '返回 AI 办公室' }))
+  fireEvent.change(view.getByLabelText('查看群聊'), { target: { value: 'room-b' } })
+  fireEvent.click(view.getByRole('button', { name: '打开群聊 ↗' }))
+  await waitFor(() => expect(view.getByText('来自room-b')).toBeTruthy())
+  expect(view.queryByText('来自room-a')).toBeNull()
+  expect(calls.some(call => call.endpoint === 'send')).toBe(false)
 })

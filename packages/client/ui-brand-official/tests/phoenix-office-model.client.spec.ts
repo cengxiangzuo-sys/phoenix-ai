@@ -25,4 +25,23 @@ describe('Office projection', () => {
     expect(people.map(p => p.floor)).toEqual([0,0,0,0,1,1,1,1,2,2])
     expect(new Set(people.map(p => `${p.floor}:${p.station}`)).size).toBe(10)
   })
+  it('places an employee in only the active speaking room when two groups overlap', () => {
+    const simultaneous: OfficeState = { ...state,
+      rooms: [
+        { id: 'alpha', name: '策划会', members: ['lead', 'writer'] },
+        { id: 'beta', name: '资料会', members: ['lead', 'writer'] },
+      ],
+      work: { bots: { writer: { roomId: 'alpha' } }, rooms: {
+        alpha: [{ botId: 'writer', speaking: false }],
+        beta: [{ botId: 'writer', speaking: true }],
+      } },
+    }
+    const inAlpha = officePeople(simultaneous, false, 'alpha').find(person => person.id === 'writer')!
+    const inBeta = officePeople(simultaneous, false, 'beta').find(person => person.id === 'writer')!
+    expect(inAlpha.activeRoomId).toBe('beta')
+    expect(inAlpha.status).toBe('working')
+    expect(inAlpha.meeting).toBe(false)
+    expect(inBeta.meeting).toBe(true)
+    expect(inBeta.speaking).toBe(true)
+  })
 })

@@ -24,8 +24,107 @@ async function botRequest<T>(endpoint: string, payload: Record<string, unknown> 
 function statusFor(bot: Bot, state: OfficeState | null): { label: string; busy: boolean } {
   if (bot.blocked) return { label: '需要处理', busy: false }
   if (bot.waiting) return { label: '等待模型', busy: false }
-  if (state?.work?.bots?.[bot.id]) return { label: '工作中', busy: true }
+  if (state?.work?.bots?.[bot.id] || Object.values(state?.work?.rooms ?? {}).some(members => members.some(member => member.botId === bot.id))) return { label: '工作中', busy: true }
   return { label: '待命', busy: false }
+}
+
+type Room = NonNullable<OfficeState['rooms']>[number]
+type RoomItem = { id: string; kind: 'user' | 'bot' | 'event'; text?: string; name?: string | null; botId?: string | null; event?: string }
+type RoomCursor = { part: number; beforeSeq?: number } | null
+type RoomPage = { items: RoomItem[]; cursor: RoomCursor; running: boolean; speaking?: string | null }
+
+function OfficeRoomChat({ room, bots, onBack }: { room: Room; bots: Bot[]; onBack: () => void }) {
+  const [items, setItems] = useState<RoomItem[]>([])
+  const [cursor, setCursor] = useState<RoomCursor | undefined>(undefined)
+  const [running, setRunning] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const refresh = useCallback(async () => {
+    const page = await botRequest<RoomPage>('room-chat', { roomId: room.id })
+    setItems((previous) => {
+      const current = new Set(page.items.map(item => item.id))
+      return [...previous.filter(item => !current.has(item.id)), ...page.items]
+    })
+    setCursor(previous => previous === undefined ? page.cursor : previous)
+    setRunning(page.running)
+    setError(null)
+  }, [room.id])
+
+  useEffect(() => {
+    let active = true
+    const read = async () => {
+      try {
+        const page = await botRequest<RoomPage>('room-chat', { roomId: room.id })
+        if (!active) return
+        setItems((previous) => {
+          const current = new Set(page.items.map(item => item.id))
+          return [...previous.filter(item => !current.has(item.id)), ...page.items]
+        })
+        setCursor(previous => previous === undefined ? page.cursor : previous)
+        setRunning(page.running)
+        setError(null)
+      } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : '无法读取群聊') }
+    }
+    void read()
+    const timer = window.setInterval(() => { void read() }, 2500)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [room.id])
+
+  const loadEarlier = async () => {
+    if (!cursor) return
+    setBusy(true)
+    try {
+      const page = await botRequest<RoomPage>('room-chat', { roomId: room.id, cursor })
+      setItems(previous => [...page.items.filter(item => !previous.some(current => current.id === item.id)), ...previous])
+      setCursor(page.cursor)
+      setError(null)
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '无法加载更早消息') }
+    finally { setBusy(false) }
+  }
+
+  const send = async () => {
+    const text = draft.trim()
+    if (!text || busy) return
+    setBusy(true)
+    try {
+      await botRequest('send', { sessionId: room.sessionId ?? room.id, text })
+      setDraft('')
+      await refresh()
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '发送失败，请重试') }
+    finally { setBusy(false) }
+  }
+
+  const stop = async () => {
+    setBusy(true)
+    try { await botRequest('stop-room-work', { roomId: room.id }); await refresh() }
+    catch (cause) { setError(cause instanceof Error ? cause.message : '停止失败，请重试') }
+    finally { setBusy(false) }
+  }
+
+  return <main className={css.page}>
+    <header className={css.header} data-window-drag>
+      <div className={css.heading}><button type="button" className={css.back} onClick={onBack} aria-label="返回 AI 办公室">←</button><div><span className={css.eyebrow}>AI 办公室 · 会议室</span><h1>{room.name}</h1></div></div>
+      <div className={css.headerActions}>{running && <span className={css.live}>员工正在讨论</span>}<button type="button" className={css.secondary} onClick={() => { void stop() }} disabled={!running || busy}>停止群聊任务</button></div>
+    </header>
+    <div className={css.roomMembers}>{room.members.map((id) => { const bot = bots.find(item => item.id === id); return bot && <button type="button" key={id} className={css.secondary} onClick={() => setDraft(current => `${current}${current && !/\s$/.test(current) ? ' ' : ''}@${bot.name} `)}>@{bot.name} · {bot.role}</button> })}</div>
+    <div className={css.roomHistory} aria-label="群聊消息">
+      {cursor && <button type="button" className={css.secondary} onClick={() => { void loadEarlier() }} disabled={busy}>加载更早消息</button>}
+      {cursor === undefined && <p className={css.loading}>正在加载群聊…</p>}
+      {cursor !== undefined && items.length === 0 && <p className={css.empty}>群聊已创建。发送消息后，员工会在这里回复。</p>}
+      {items.map(item => <div key={item.id} className={`${css.roomMessage} ${item.kind === 'user' ? css.roomUser : item.kind === 'event' ? css.roomEvent : ''}`}>
+        {item.kind === 'bot' && <strong>{item.name || bots.find(bot => bot.id === item.botId)?.name || '员工'}</strong>}
+        {item.kind === 'user' && <strong>我</strong>}
+        <span>{item.text || (item.kind === 'event' ? item.event : '')}</span>
+      </div>)}
+    </div>
+    {error && <div className={css.error} role="alert">{error} <button type="button" onClick={() => { void refresh() }}>重试</button></div>}
+    <form className={css.roomComposer} onSubmit={(event) => { event.preventDefault(); void send() }}>
+      <input aria-label="群聊消息" value={draft} onChange={event => setDraft(event.target.value)} placeholder="输入任务，或点击上方 @ 指定员工" />
+      <button type="submit" className={css.primary} disabled={!draft.trim() || busy}>发送</button>
+    </form>
+  </main>
 }
 
 /** Phoenix's office reads and updates the existing durable employee roster. */
@@ -52,6 +151,7 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
   const [playing, setPlaying] = useState(() => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   const [roomId, setRoomId] = useState('')
   const [hall, setHall] = useState(false)
+  const [chatRoomId, setChatRoomId] = useState('')
 
   const refresh = useCallback(async () => {
     try {
@@ -118,6 +218,7 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
       setRoomMembers([])
       await refresh()
       setRoomId(room.id)
+      setChatRoomId(room.id)
     } catch (cause) { setError(cause instanceof Error ? cause.message : '创建群聊失败') }
     finally { setBusy(false) }
   }
@@ -127,7 +228,8 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
   const selectedBot = staff.find(bot => bot.id === selected)
   const floorCount = Math.max(1, ...people.map(p => p.floor + 1))
   const visibleFloor = Math.min(floor, floorCount - 1)
-  const visiblePeople = useMemo(() => people.filter(p => p.floor === visibleFloor), [people, visibleFloor])
+  const visiblePeople = useMemo(() => people.filter(p => p.floor === visibleFloor
+    && (!p.activeRoomId || p.activeRoomId === roomId)), [people, visibleFloor, roomId])
   const choices = staff.filter(bot => (!job || bot.role === job) && `${bot.name} ${bot.role}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
   const selectEmployee = (id: string) => {
     const person = people.find(p => p.id === id)
@@ -137,8 +239,12 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
     setFocused(true)
   }
   const activeRoom = state?.rooms?.find(room => room.id === roomId)
+  const elsewhere = people.filter(person => person.activeRoomId && person.activeRoomId !== roomId).length
   const working = staff.filter(bot => statusFor(bot, state).busy).length
   const selectedSessionId = editing === 'new' ? undefined : editing?.sessionId
+  const chatRoom = state?.rooms?.find(room => room.id === chatRoomId)
+
+  if (chatRoom) return <OfficeRoomChat key={chatRoom.id} room={chatRoom} bots={staff} onBack={() => setChatRoomId('')} />
 
   return <main className={css.page}>
     <header className={css.header} data-window-drag>
@@ -167,7 +273,8 @@ export function PhoenixOffice({ onHome, onOpenEmployee }: { onHome: () => void; 
         <label>楼层 <select aria-label="办公室楼层" value={visibleFloor} onChange={(event) => { setFloor(Number(event.target.value)); setFocused(false) }}>{Array.from({ length: floorCount }, (_,i) => <option key={i} value={i}>{i+1} 层</option>)}</select></label>
         <label>群聊 <select aria-label="查看群聊" value={roomId} onChange={(event) => { setRoomId(event.target.value); setHall(false); setFocused(false) }}><option value="">个人工位</option>{state?.rooms?.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label>
         <button type="button" className={css.secondary} onClick={() => { setError(null); setRoomEditor(true) }} disabled={!state || !!state.readOnly || staff.length === 0}>＋ 创建群聊</button>
-        {activeRoom && <><button className={css.secondary} onClick={() => setHall(!hall)}>{hall ? '查看会议室' : '查看大厅席位'}</button><button className={css.secondary} disabled={!activeRoom.sessionId} onClick={() => { if (activeRoom.sessionId) onOpenEmployee(activeRoom.sessionId) }}>打开群聊 ↗</button></>}
+        {activeRoom && <><button className={css.secondary} onClick={() => setHall(!hall)}>{hall ? '查看会议室' : '查看大厅席位'}</button><button className={css.secondary} onClick={() => setChatRoomId(activeRoom.id)}>打开群聊 ↗</button></>}
+        {elsewhere > 0 && <span className={css.live}>{elsewhere} 位员工在其他会议室</span>}
       </div>
       {connectionError && <div className={css.error} role="alert">{connectionError} · 画面状态暂不可确认 <button onClick={() => { void refresh() }}>重试</button></div>}
       <div className={css.employeeBar}>
