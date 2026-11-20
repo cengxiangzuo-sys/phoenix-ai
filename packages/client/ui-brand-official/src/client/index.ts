@@ -6,7 +6,6 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { PixelWhale } from './home-whale/PixelWhale.tsx'
 import { OfficialBrandMark, OfficialBrandName } from './Brand.tsx'
@@ -14,6 +13,7 @@ import { PhoenixBrandMark, PhoenixBrandName } from './PhoenixBrand.tsx'
 import { installPhoenixTheme } from './PhoenixTheme.ts'
 import { PhoenixOffice, PhoenixOfficeIcon } from './PhoenixOffice.tsx'
 import { OfficeReturn } from './OfficeReturn.tsx'
+import { installNativeBotSurface, openNativeBotSurface } from './NativeBotSurface.tsx'
 
 /** Required service: the UI slot registry. */
 export const inject = ['slots']
@@ -25,10 +25,11 @@ export const inject = ['slots']
 export function apply(ctx: ClientContext): void {
   if (process.env.DSH_CLIENT_BRAND === 'phoenix') {
     installPhoenixTheme(ctx)
+    installNativeBotSurface(ctx)
     ctx.slots.inject('sidebar.brand.mark', () =>
       ctx.slots.inject('sidebar.brand.name', function* () {
-        yield ctx.slots.register({ name: 'sidebar.brand.mark' }, PhoenixBrandMark)
-        yield ctx.slots.register({ name: 'sidebar.brand.name' }, PhoenixBrandName)
+        yield ctx.slots.register({ name: 'sidebar.brand.mark', priority: -1_000 }, PhoenixBrandMark)
+        yield ctx.slots.register({ name: 'sidebar.brand.name', priority: -1_000 }, PhoenixBrandName)
       }))
     ctx.inject(['layout', 'uiWorkspace'], (scope) => {
       scope.slots.inject('conversation.header.leading', () => scope.slots.register({
@@ -42,10 +43,7 @@ export function apply(ctx: ClientContext): void {
             scope.layout.selectPanel(null)
             scope.uiWorkspace.startSession()
           },
-          onOpenEmployee: (sessionId: string) => {
-            scope.layout.selectPanel(null)
-            scope.uiWorkspace.openSession(sessionId as SessionId)
-          },
+          onOpenNative: (sessionId?: string) => { openNativeBotSurface(sessionId) },
         }),
       }, PhoenixOffice))
       scope.slots.inject('sidebar.panellist', () => scope.slots.register({
