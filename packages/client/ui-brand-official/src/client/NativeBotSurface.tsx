@@ -78,6 +78,19 @@ export function phoenixTerm(value: string): string {
   return PHOENIX_TERMS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value)
 }
 
+function employeePaint(mark: HTMLElement): string | undefined {
+  const bodyPaint = mark.querySelector(':scope > svg .bt-b [fill]')?.getAttribute('fill')
+  if (bodyPaint && !/^#(?:fff(?:fff)?|000(?:000)?)$/i.test(bodyPaint)) {
+    if (!bodyPaint.startsWith('url(')) return bodyPaint
+    const stops = [...mark.querySelectorAll(':scope > svg stop[stop-color]')]
+      .map(node => node.getAttribute('stop-color'))
+      .filter((value): value is string => value !== null)
+    if (stops.length > 0) return `linear-gradient(135deg,${stops.join(',')})`
+  }
+  const colors = [...mark.querySelectorAll(':scope > svg [fill]')].map(node => node.getAttribute('fill') ?? '')
+  return colors.find(value => /^#[0-9a-f]{3,8}$/i.test(value) && !/^#(?:fff(?:fff)?|000(?:000)?)$/i.test(value))
+}
+
 function markEmployeeAvatar(root: Element): void {
   const marks: HTMLElement[] = []
   if (root instanceof HTMLElement && root.matches('.bt-mark')) marks.push(root)
@@ -85,10 +98,11 @@ function markEmployeeAvatar(root: Element): void {
   if (parent instanceof HTMLElement && !marks.includes(parent)) marks.push(parent)
   for (const mark of marks) {
     if (!mark.querySelector(':scope > svg, :scope > .bt-mark-img')) continue
-    const colors = [...mark.querySelectorAll('[fill]')].map(node => node.getAttribute('fill') ?? '')
-    const color = colors.find(value => /^#[0-9a-f]{3,8}$/i.test(value) && !/^#(?:fff(?:fff)?|000(?:000)?)$/i.test(value))
+    const color = employeePaint(mark)
     mark.dataset.phoenixEmployee = ''
-    if (color) mark.style.setProperty('--phoenix-employee-color', color)
+    if (color && mark.style.getPropertyValue('--phoenix-employee-color') !== color) {
+      mark.style.setProperty('--phoenix-employee-color', color)
+    }
   }
 }
 
@@ -130,7 +144,7 @@ export function installPhoenixSurfaceBranding(): () => void {
     childList: true,
     characterData: true,
     attributes: true,
-    attributeFilter: ['aria-label', 'title', 'placeholder', 'alt'],
+    attributeFilter: ['aria-label', 'title', 'placeholder', 'alt', 'fill', 'stop-color'],
   })
   return () => observer.disconnect()
 }
@@ -144,6 +158,13 @@ export function openNativeBotSurface(sessionId?: string): void {
   } finally {
     window.location.reload()
   }
+}
+
+/** Select the visual office and cancel a pending employee-chat restoration. */
+export function returnToPhoenixOffice(selectPanel: (panel: MainPanelId) => void): void {
+  sessionStorage.removeItem(TARGET_KEY)
+  sessionStorage.removeItem(OFFICE_KEY)
+  selectPanel('phoenix-office' as MainPanelId)
 }
 
 /** Native team surface footer entry back to the Phoenix office. */
@@ -162,7 +183,7 @@ export function installNativeBotSurface(ctx: ClientContext): void {
   ctx.inject(['layout', 'sessions', 'uiWorkspace'], (scope) => {
     scope.slots.inject('sidebar.footer.action', () => scope.slots.register({
       name: 'sidebar.footer.action', id: 'phoenix-office-return', order: -1_000,
-      inject: () => ({ onClick: () => scope.layout.selectPanel('phoenix-office' as MainPanelId) }),
+      inject: () => ({ onClick: () => returnToPhoenixOffice(panel => scope.layout.selectPanel(panel)) }),
     }, NativeOfficeReturn))
     scope.effect(() => {
       const leftOffice = sessionStorage.getItem(HOME_KEY) === '1'

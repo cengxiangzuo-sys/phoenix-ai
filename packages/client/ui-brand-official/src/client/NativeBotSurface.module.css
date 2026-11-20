@@ -1,4 +1,4 @@
-.return{display:flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l3);border-radius:10px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.return{position:relative;z-index:10;display:flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l3);border-radius:10px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:500;cursor:pointer;pointer-events:auto;-webkit-app-region:no-drag}
 .return:hover{background:var(--dsw-alias-interactive-bg-hover-solid)}
 .return:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
 .mark{width:20px;height:20px;flex:none}
@@ -12,12 +12,12 @@
 /* Phoenix owns the AI Office entry. Do not expose the plugin's legacy mode switch on the normal sidebar. */
 :global(body[data-phoenix-brand] .bt-return){display:none!important}
 :global(body[data-phoenix-brand] .bt-brand-whale svg){display:none}
-:global(body[data-phoenix-brand] .bt-brand-whale){width:24px;height:24px;background:linear-gradient(145deg,#ffad24,#ff5a00);mask:url('./assets/phoenix-employee.svg') center/contain no-repeat}
+:global(body[data-phoenix-brand] .bt-brand-whale){width:24px;height:24px;background:url('./assets/phoenix-flame.svg') center/contain no-repeat}
 :global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]){isolation:isolate}
 :global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]>svg),
 :global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]>.bt-mark-img){opacity:0}
-:global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]::before){content:"";position:absolute;inset:-4%;z-index:0;background:var(--phoenix-employee-color,#ff7a00);mask:url('./assets/phoenix-employee.svg') center/contain no-repeat;filter:drop-shadow(0 2px 2px rgb(75 32 5/.18))}
-:global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]::after){content:"••";position:absolute;left:0;right:0;top:31%;z-index:1;text-align:center;color:#27130a;font:700 8px/1 system-ui;letter-spacing:5px;padding-left:5px}
+:global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]::before){content:"";position:absolute;inset:0;z-index:0;background:var(--phoenix-employee-color,#ff7a00);mask:url('./assets/phoenix-flame-mask.svg') center/contain no-repeat;filter:drop-shadow(0 2px 2px rgb(75 32 5/.18))}
+:global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]::after){content:"";position:absolute;inset:0;z-index:1;background:url('./assets/phoenix-flame-face.svg') center/contain no-repeat}
 :global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee][data-state=working]::before){animation:phoenix-employee-work 1.2s ease-in-out infinite}
 :global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee][data-state=thinking]::before){animation:phoenix-employee-think 2s ease-in-out infinite}
 @keyframes phoenix-employee-work{50%{transform:translateY(-5%) rotate(3deg)}}

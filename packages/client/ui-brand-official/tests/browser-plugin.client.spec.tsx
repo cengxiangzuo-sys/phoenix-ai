@@ -8,10 +8,13 @@ import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
 import { PHOENIX_THEME_TOKENS } from '../src/client/PhoenixTheme.ts'
 import { apply as hostApply } from '../src/index.ts'
 import { OfficeReturn } from '../src/client/OfficeReturn.tsx'
-import { isSelectedEmployeeSession } from '../src/client/NativeBotSurface.tsx'
+import { installPhoenixSurfaceBranding, isSelectedEmployeeSession, returnToPhoenixOffice } from '../src/client/NativeBotSurface.tsx'
 
 afterEach(() => {
   cleanup()
+  document.body.replaceChildren()
+  localStorage.clear()
+  sessionStorage.clear()
   vi.unstubAllEnvs()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
@@ -164,5 +167,26 @@ describe('official browser-brand plugin', () => {
 
     localStorage.setItem('dsh.sessions.current', JSON.stringify({ sessionId: 'ordinary-1' }))
     expect(isSelectedEmployeeSession()).toBe(false)
+  })
+
+  it('uses the employee theme color and follows later color selections', async () => {
+    document.body.innerHTML = '<span class="bt-mark"><svg><g class="bt-b"><path fill="var(--bt-ink-orange)"/></g></svg></span>'
+    const dispose = installPhoenixSurfaceBranding()
+    const mark = document.querySelector<HTMLElement>('.bt-mark')
+    const path = document.querySelector('path')
+    expect(mark?.dataset.phoenixEmployee).toBe('')
+    expect(mark?.style.getPropertyValue('--phoenix-employee-color')).toBe('var(--bt-ink-orange)')
+
+    path?.setAttribute('fill', 'var(--bt-ink-violet)')
+    await vi.waitFor(() => expect(mark?.style.getPropertyValue('--phoenix-employee-color')).toBe('var(--bt-ink-violet)'))
+    dispose()
+  })
+
+  it('cancels a pending employee restore before showing the office', () => {
+    sessionStorage.setItem('phoenix.native-bot.target.v1', 'employee-1')
+    const selectPanel = vi.fn()
+    returnToPhoenixOffice(selectPanel)
+    expect(sessionStorage.getItem('phoenix.native-bot.target.v1')).toBeNull()
+    expect(selectPanel).toHaveBeenCalledWith('phoenix-office')
   })
 })
