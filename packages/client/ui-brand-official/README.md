@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package supplies a click-triggered pixel whale on the blank home and gives an `official` client build the DeepSeek Harness sidebar artwork. The shipped Web and Desktop compositions load it by default. Other build profiles retain their existing branding. The hero mark stays on its animated fish fallback. The background owns only temporary canvas resources and adds no model requests.
+This package supplies a click-triggered pixel whale on the blank home and gives an `official` client build the DeepSeek Harness sidebar artwork. The shipped Web and Desktop compositions load it by default. Other build profiles retain their existing branding. The hero mark stays on its animated fish fallback. The background owns only temporary canvas resources and adds no model requests. A Phoenix build also installs a host-side employee-dispatch guard for its office integration.
 
 ## Table of Contents
 
@@ -51,7 +51,7 @@ A deployment with its own identity can leave this package out and compose anothe
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The two occupants install as one declaration-aware registration set: nested `ctx.slots.inject()` calls wait on the sidebar declaration, so the set works whether this row activates before or after the declarer, withdraws both occupants when the declaration collapses, and leaves no partial brand mix during HMR. The independent `conversation.hero.frame` layer owns the canvas renderer and waits for its declaration through `ctx.slots.inject()`. While `hero` is true it paints the canvas at negative `z-index`, which the frame contract places above the Conversation background and below all Conversation content. It plays on primary clicks that reach its own frame outside controls and the composer card; clicks from portaled overlays and clicks that end a text selection inside the frame are ignored. It never changes the composer or conversation state. The browser half is [`src/client/index.ts`](src/client/index.ts); the node half is an empty Loader seat. The [frame atlas](src/client/assets/breach-atlas.webp) derives from the user-supplied [showcase video](https://yinghuo-hg.deepseek.com/wuyexinrui/dev-cpu/web-showcase/orca.mp4): 1.5–7.2 seconds at 24 frames per second, sampled to 192 × 108 cells and stored as lossless WebP. Its red and green channels encode dot radius and opacity at 32 levels; the renderer reads it once after the first eligible click. The browser title is a build-environment concern (`DSH_CLIENT_TITLE`), outside the slot system.
+The two occupants install as one declaration-aware registration set: nested `ctx.slots.inject()` calls wait on the sidebar declaration, so the set works whether this row activates before or after the declarer, withdraws both occupants when the declaration collapses, and leaves no partial brand mix during HMR. The independent `conversation.hero.frame` layer owns the canvas renderer and waits for its declaration through `ctx.slots.inject()`. While `hero` is true it paints the canvas at negative `z-index`, which the frame contract places above the Conversation background and below all Conversation content. It plays on primary clicks that reach its own frame outside controls and the composer card; clicks from portaled overlays and clicks that end a text selection inside the frame are ignored. It never changes the composer or conversation state. The browser half is [`src/client/index.ts`](src/client/index.ts). In Phoenix only, the node half wraps the installed collaboration tools: after a successful `message_bot` or `post_to_group` dispatch, the same agent and conversation lane cannot dispatch again until a new inbox message is claimed. A failed dispatch releases immediately. A single group post may still mention multiple employees for intentional parallel work, and independent direct-message lanes remain independent. The [frame atlas](src/client/assets/breach-atlas.webp) derives from the user-supplied [showcase video](https://yinghuo-hg.deepseek.com/wuyexinrui/dev-cpu/web-showcase/orca.mp4): 1.5–7.2 seconds at 24 frames per second, sampled to 192 × 108 cells and stored as lossless WebP. Its red and green channels encode dot radius and opacity at 32 levels; the renderer reads it once after the first eligible click. The browser title is a build-environment concern (`DSH_CLIENT_TITLE`), outside the slot system.
 
 </details>
 
@@ -71,11 +71,11 @@ Read these pages when the brand surface is not enough. They move from the slots 
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as the package contributes browser presentation only; nothing here reaches a model request.
+Indirectly, through the Phoenix-only dispatch guard returning a model-visible tool failure when one agent tries a second employee assignment in the same conversation lane before a new inbox message is claimed.
 
 #### KV Cache effect
 
-None; this package neither assembles nor sends a provider request.
+The guard adds no prompt prefix and starts no model request. Only a rejected overlapping dispatch adds one short tool-result suffix to the current turn; ordinary serial dispatches have no additional token or KV-cache effect.
 
 ## Known Limitations and Deferred Work
 
@@ -93,6 +93,8 @@ These limits define how brand presentation is supplied. They are current package
 The Phoenix profile presents the existing employee roster in an offline 3D office. The scene fills the available workspace. Drag to orbit the center, scroll to zoom, and use Reset view to restore the overview; dragging does not pan or select an employee. Clicking an employee or nameplate opens the complete existing employee surface and its original Session; the top selector only changes the camera. The office header uses the native window drag region. Nameplates show saved names and job titles; the overview supports search, job filtering, employee cameras and additional floors. Idle drinking is decorative and is interrupted by work, blocked, waiting or unknown states. The sandboxed renderer receives display data only. Group seating and hall views are presentation controls, not task completion signals. See the [acceptance record](../../../apps/desktop/phoenix-office-acceptance.md) for verified operations and remaining integration work.
 
 Employee creation, editing, model binding, credentials, folders, conversations, groups, members, room settings and persisted history remain owned by the installed team service. Phoenix supplies one branded office entry, opens that complete native surface for management and chat, and provides a visible return to the office. It does not maintain duplicate employee forms, room chat, room settings or a second data store. User-visible shell, team-surface and navigation product names are translated to Phoenix wording; compatibility package identifiers and license metadata remain unchanged internally.
+
+Phoenix also prevents two separate assignments to the same employee conversation or group from being accepted back-to-back by one orchestrator. The first successful assignment stays pending until the employee reply or another inbox message starts the next step. This is an admission barrier, not a durable workflow engine: restart recovery still requires an authoritative persisted checkpoint, final summaries still need a source-of-truth event ledger, and a whole-task model-call budget is not enforced here.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包在空白首页提供点击浮出的像素鲸鱼，并让以 `official` profile 构建的客户端显示 DeepSeek Harness 侧栏品牌图形。随产品提供的 Web 与 Desktop 组合默认加载本包。其他构建 profile 保留原有品牌。首屏标志仍使用动画鱼回退。背景只持有临时 Canvas 资源，不增加模型请求。
+本包在空白首页提供点击浮出的像素鲸鱼，并让以 `official` profile 构建的客户端显示 DeepSeek Harness 侧栏品牌图形。随产品提供的 Web 与 Desktop 组合默认加载本包。其他构建 profile 保留原有品牌。首屏标志仍使用动画鱼回退。背景只持有临时 Canvas 资源，不增加模型请求。Phoenix 构建还会为办公室整合安装一层宿主侧员工派发护栏。
 
 ## 目录
 
@@ -51,7 +51,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-两个填充作为一组声明感知的注册安装：嵌套的 `ctx.slots.inject()` 调用等待侧栏声明，因此无论本行在声明者之前还是之后激活，这组注册都能工作；声明消失时两个填充一并撤回，HMR 期间也不会留下残缺的品牌混合。独立的 `conversation.hero.frame` 层持有 Canvas 绘制器，通过 `ctx.slots.inject()` 等待声明；`hero` 为 true 时它以负 `z-index` 绘制 Canvas，按 frame 层约定画在 Conversation 背景之上、所有 Conversation 内容之下。它在点击落到自身外框、且不在控件和输入卡片上时播放；portal 浮层的点击以及结束外框内文字选择的点击会被忽略。它不更改输入框或会话状态。浏览器半部是 [`src/client/index.ts`](src/client/index.ts)；node 半部是空的 Loader 席位。[帧图](src/client/assets/breach-atlas.webp) 来自用户提供的[展示视频](https://yinghuo-hg.deepseek.com/wuyexinrui/dev-cpu/web-showcase/orca.mp4)：截取 1.5–7.2 秒，以每秒 24 帧采样为 192 × 108 个单元，以无损 WebP 存储。红色与绿色通道以 32 级分别编码圆点半径和不透明度；绘制器在首次符合条件的点击后读取一次。浏览器标题是构建环境的事（`DSH_CLIENT_TITLE`），不在 slot 系统之内。
+两个填充作为一组声明感知的注册安装：嵌套的 `ctx.slots.inject()` 调用等待侧栏声明，因此无论本行在声明者之前还是之后激活，这组注册都能工作；声明消失时两个填充一并撤回，HMR 期间也不会留下残缺的品牌混合。独立的 `conversation.hero.frame` 层持有 Canvas 绘制器，通过 `ctx.slots.inject()` 等待声明；`hero` 为 true 时它以负 `z-index` 绘制 Canvas，按 frame 层约定画在 Conversation 背景之上、所有 Conversation 内容之下。它在点击落到自身外框、且不在控件和输入卡片上时播放；portal 浮层的点击以及结束外框内文字选择的点击会被忽略。它不更改输入框或会话状态。浏览器半部是 [`src/client/index.ts`](src/client/index.ts)。仅在 Phoenix 中，node 半部包装已安装的协作工具：`message_bot` 或 `post_to_group` 成功派发后，同一 Agent 和会话通道在领取新 inbox 消息前不能再派发。失败的派发会立即释放。单条群消息仍可以同时点名多位员工来有意并行，独立私聊通道也互不影响。[帧图](src/client/assets/breach-atlas.webp) 来自用户提供的[展示视频](https://yinghuo-hg.deepseek.com/wuyexinrui/dev-cpu/web-showcase/orca.mp4)：截取 1.5–7.2 秒，以每秒 24 帧采样为 192 × 108 个单元，以无损 WebP 存储。红色与绿色通道以 32 级分别编码圆点半径和不透明度；绘制器在首次符合条件的点击后读取一次。浏览器标题是构建环境的事（`DSH_CLIENT_TITLE`），不在 slot 系统之内。
 
 </details>
 
@@ -71,11 +71,11 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-无，因为本包只贡献浏览器呈现；这里没有任何内容进入模型请求。
+间接影响，因为仅 Phoenix 使用的派发护栏会在同一 Agent 尚未领取新 inbox 消息时，将向同一员工通道连续派发的第二个任务返回为模型可见的工具失败。
 
 #### KV Cache 影响
 
-无；本包既不组装也不发送提供方请求。
+护栏不增加 prompt 前缀，也不启动模型请求。只有被拒绝的重叠派发会在当前轮次增加一条短工具结果后缀；正常串行派发不增加 token，也不影响 KV Cache。
 
 ## 已知限制与延期工作
 
@@ -91,6 +91,8 @@ kind: "package-reference"
 ### Phoenix 办公室
 
 Phoenix 配置将现有员工名册呈现为离线三维办公室。场景占用可用工作区；拖动围绕中心旋转，滚轮缩放，“重置视角”恢复总览。拖动不会平移办公室或选中员工。点击角色或姓名牌打开原有员工资料，顶部选择器仅切换视角；办公室页头使用原生窗口拖动区域。姓名牌显示已保存的姓名与岗位职称；总览支持搜索、岗位筛选、员工视角和额外楼层。创建、编辑、模型与会话继续使用现有员工服务。待命喝水仅为装饰动画，工作、阻塞、等待或未知状态会中断休闲。沙箱渲染器只接收展示数据。群成员落座与大厅视图属于画面控制，不代表任务已经交付。已验证操作与剩余整合工作见[验收记录](../../../apps/desktop/phoenix-office-acceptance.md)。
+
+Phoenix 还会阻止一个编排器向同一员工会话或群聊连续接受两个独立任务。第一个成功派发在员工回复或其他 inbox 消息启动下一步前保持待定。这是准入护栏，不是持久化工作流引擎：重启恢复仍需权威的持久化检查点，最终汇总仍需事件真相账本，全任务模型调用预算也不在本包中强制。
 
 <a id="dev-note"></a>
 ### 开发备注

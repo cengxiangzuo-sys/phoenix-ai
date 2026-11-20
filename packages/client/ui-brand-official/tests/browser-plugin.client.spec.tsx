@@ -6,7 +6,6 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply, inject } from '../src/client/index.ts'
 import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
 import { PHOENIX_THEME_TOKENS } from '../src/client/PhoenixTheme.ts'
-import { apply as hostApply } from '../src/index.ts'
 import { OfficeReturn } from '../src/client/OfficeReturn.tsx'
 import { installPhoenixSurfaceBranding, isSelectedEmployeeSession, returnToPhoenixOffice } from '../src/client/NativeBotSurface.tsx'
 
@@ -44,10 +43,6 @@ async function bench(declare = true) {
 }
 
 describe('official browser-brand plugin', () => {
-  it('keeps the host Loader entry inert', () => {
-    expect(hostApply).not.toThrow()
-  })
-
   it('declares only the slot service it uses', () => {
     expect(inject).toEqual(['slots'])
   })
