@@ -150,9 +150,13 @@ export function installNativeBotSurface(ctx: ClientContext): void {
     }, NativeOfficeReturn))
     scope.effect(() => {
       if (sessionStorage.getItem(OFFICE_KEY) !== '1') return () => {}
-      sessionStorage.removeItem(OFFICE_KEY)
-      const frame = window.requestAnimationFrame(() => scope.layout.selectPanel('phoenix-office' as MainPanelId))
-      return () => { window.cancelAnimationFrame(frame) }
+      // The reused team runtime restores its last chat shortly after mount. Select the
+      // office after that restore so a home-page click cannot be overwritten by it.
+      const timer = window.setTimeout(() => {
+        scope.layout.selectPanel('phoenix-office' as MainPanelId)
+        sessionStorage.removeItem(OFFICE_KEY)
+      }, 1_000)
+      return () => { window.clearTimeout(timer) }
     }, 'phoenix-office: restore office after native team')
 
     scope.effect(() => {

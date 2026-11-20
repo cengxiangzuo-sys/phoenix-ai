@@ -102,6 +102,10 @@ export function developmentLauncher(options: DevelopmentAppOptions, bundle: stri
     DSH_DESKTOP_DSH_DIR: join(options.directory, 'project'),
     ...(process.env.DSH_CLIENT_BRAND === 'phoenix'
       ? {
+        // Finder cold starts do not inherit the shell environment used to create the app.
+        // Preserve the product identity so the Phoenix bundles and profile adapters mount.
+        DSH_CLIENT_BRAND: 'phoenix',
+        DSH_CLIENT_TITLE: 'Phoenix AI',
         DSH_DESKTOP_PRIMARY_RUNTIME_DIR: join(options.directory, 'runtime', 'primary-runtime'),
         DSH_DESKTOP_DIAGNOSTIC_FILE: join(options.directory, 'startup-error.txt'),
       }

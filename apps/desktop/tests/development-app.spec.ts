@@ -30,7 +30,9 @@ it.skipIf(process.platform === 'win32')('keeps Phoenix development data and runt
   const bundle = join(root, 'Phoenix AI Dev.app')
   const binary = join(bundle, 'Contents', 'MacOS', 'Electron')
   mkdirSync(join(bundle, 'Contents', 'MacOS'), { recursive: true })
-  writeFileSync(binary, '#!/bin/sh\nprintf "%s\\n" "$DSH_HOME" "$DSH_DESKTOP_DSH_DIR" "$DSH_DESKTOP_PRIMARY_RUNTIME_DIR" "$@"\n', { mode: 0o755 })
+  writeFileSync(binary,
+    '#!/bin/sh\nprintf "%s\\n" "$DSH_HOME" "$DSH_DESKTOP_DSH_DIR" "$DSH_DESKTOP_PRIMARY_RUNTIME_DIR" "$DSH_CLIENT_BRAND" "$DSH_CLIENT_TITLE" "$@"\n',
+    { mode: 0o755 })
   const launcher = join(root, 'launcher')
   const home = join(root, 'home')
   writeFileSync(launcher, developmentLauncher({ electron: binary, appRoot: root, directory: root,
@@ -39,4 +41,5 @@ it.skipIf(process.platform === 'win32')('keeps Phoenix development data and runt
   expect(result.trimEnd().split('\n').slice(0, 3)).toEqual([
     home, join(root, 'project'), join(root, 'runtime', 'primary-runtime'),
   ])
+  expect(result.trimEnd().split('\n').slice(3, 5)).toEqual(['phoenix', 'Phoenix AI'])
 })

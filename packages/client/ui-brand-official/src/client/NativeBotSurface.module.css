@@ -9,6 +9,8 @@
 :global(body[data-phoenix-brand] .bt-leftcol){background:linear-gradient(160deg,color-mix(in srgb,var(--bt-sidebar) 94%,#ff7a00),var(--bt-sidebar) 45%);border-right:1px solid var(--bt-line)}
 :global(body[data-phoenix-brand] .bt-row){border-radius:14px}
 :global(body[data-phoenix-brand] .bt-row[aria-current=page]){box-shadow:inset 3px 0 0 var(--bt-accent)}
+/* Phoenix owns the AI Office entry. Do not expose the plugin's legacy mode switch on the normal sidebar. */
+:global(body[data-phoenix-brand] .bt-return){display:none!important}
 :global(body[data-phoenix-brand] .bt-brand-whale svg){display:none}
 :global(body[data-phoenix-brand] .bt-brand-whale){width:24px;height:24px;background:linear-gradient(145deg,#ffad24,#ff5a00);mask:url('./assets/phoenix-employee.svg') center/contain no-repeat}
 :global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]){isolation:isolate}
