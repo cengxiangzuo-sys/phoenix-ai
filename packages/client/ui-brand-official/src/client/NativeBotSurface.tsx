@@ -12,9 +12,24 @@ import css from './NativeBotSurface.module.css'
 const SURFACE_KEY = 'ds-bot:surface'
 const TARGET_KEY = 'phoenix.native-bot.target.v1'
 const OFFICE_KEY = 'phoenix.native-bot.office.v1'
+const HOME_KEY = 'phoenix.native-bot.home.v1'
+const CURRENT_SESSION_KEY = 'dsh.sessions.current'
+const BOT_SEEN_KEY = 'ds-bot:seen'
 
 export function isNativeBotSurface(): boolean {
   return typeof localStorage !== 'undefined' && localStorage.getItem(SURFACE_KEY) === 'bot'
+}
+
+/** Whether ordinary Harness navigation restored one of the employee runtime's Sessions. */
+export function isSelectedEmployeeSession(): boolean {
+  if (typeof localStorage === 'undefined') return false
+  try {
+    const current = JSON.parse(localStorage.getItem(CURRENT_SESSION_KEY) ?? '{}') as { sessionId?: unknown }
+    const seen = JSON.parse(localStorage.getItem(BOT_SEEN_KEY) ?? '{}') as Record<string, unknown>
+    return typeof current.sessionId === 'string' && Object.hasOwn(seen, current.sessionId)
+  } catch {
+    return false
+  }
 }
 
 /** Make the visual office and the employee runtime one surface. */
@@ -35,6 +50,7 @@ export function leaveNativeBotSurface(): void {
   try {
     sessionStorage.removeItem(OFFICE_KEY)
     sessionStorage.removeItem(TARGET_KEY)
+    sessionStorage.setItem(HOME_KEY, '1')
     localStorage.setItem(SURFACE_KEY, 'agent')
   } finally {
     window.location.reload()
@@ -148,6 +164,19 @@ export function installNativeBotSurface(ctx: ClientContext): void {
       name: 'sidebar.footer.action', id: 'phoenix-office-return', order: -1_000,
       inject: () => ({ onClick: () => scope.layout.selectPanel('phoenix-office' as MainPanelId) }),
     }, NativeOfficeReturn))
+    scope.effect(() => {
+      const leftOffice = sessionStorage.getItem(HOME_KEY) === '1'
+      if (isNativeBotSurface() || (!leftOffice && !isSelectedEmployeeSession())) return () => {}
+      // Do not expose an employee Session as an ordinary Harness conversation
+      // after leaving the office or restoring a previous desktop selection.
+      const timer = window.setTimeout(() => {
+        scope.layout.selectPanel(null)
+        scope.uiWorkspace.startSession()
+        sessionStorage.removeItem(HOME_KEY)
+      }, 1_000)
+      return () => { window.clearTimeout(timer) }
+    }, 'phoenix-office: restore normal home after office')
+
     scope.effect(() => {
       if (sessionStorage.getItem(OFFICE_KEY) !== '1') return () => {}
       // The reused team runtime restores its last chat shortly after mount. Select the

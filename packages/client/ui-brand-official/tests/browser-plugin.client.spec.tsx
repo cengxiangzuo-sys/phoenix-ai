@@ -7,6 +7,8 @@ import { apply, inject } from '../src/client/index.ts'
 import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
 import { PHOENIX_THEME_TOKENS } from '../src/client/PhoenixTheme.ts'
 import { apply as hostApply } from '../src/index.ts'
+import { OfficeReturn } from '../src/client/OfficeReturn.tsx'
+import { isSelectedEmployeeSession } from '../src/client/NativeBotSurface.tsx'
 
 afterEach(() => {
   cleanup()
@@ -142,5 +144,25 @@ describe('official browser-brand plugin', () => {
     expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('34')
     mark.rerender(<OfficialBrandMark size={24} />)
     expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('24')
+  })
+
+  it('does not expose the office return control in ordinary Phoenix conversations', () => {
+    localStorage.setItem('ds-bot:surface', 'agent')
+    const ordinary = render(<OfficeReturn onClick={vi.fn()} />)
+    expect(ordinary.queryByRole('button', { name: '返回 AI 办公室' })).toBeNull()
+    ordinary.unmount()
+
+    localStorage.setItem('ds-bot:surface', 'bot')
+    const employee = render(<OfficeReturn onClick={vi.fn()} />)
+    expect(employee.getByRole('button', { name: '返回 AI 办公室' })).toBeDefined()
+  })
+
+  it('identifies an employee Session accidentally restored in the ordinary workspace', () => {
+    localStorage.setItem('dsh.sessions.current', JSON.stringify({ sessionId: 'employee-1' }))
+    localStorage.setItem('ds-bot:seen', JSON.stringify({ 'employee-1': 1 }))
+    expect(isSelectedEmployeeSession()).toBe(true)
+
+    localStorage.setItem('dsh.sessions.current', JSON.stringify({ sessionId: 'ordinary-1' }))
+    expect(isSelectedEmployeeSession()).toBe(false)
   })
 })
