@@ -13,6 +13,34 @@ const SURFACE_KEY = 'ds-bot:surface'
 const TARGET_KEY = 'phoenix.native-bot.target.v1'
 const OFFICE_KEY = 'phoenix.native-bot.office.v1'
 
+export function isNativeBotSurface(): boolean {
+  return typeof localStorage !== 'undefined' && localStorage.getItem(SURFACE_KEY) === 'bot'
+}
+
+/** Make the visual office and the employee runtime one surface. */
+export function enterNativeBotSurface(): void {
+  if (isNativeBotSurface()) return
+  try {
+    sessionStorage.setItem(OFFICE_KEY, '1')
+    sessionStorage.removeItem(TARGET_KEY)
+    localStorage.setItem(SURFACE_KEY, 'bot')
+  } finally {
+    window.location.reload()
+  }
+}
+
+/** Leave the employee runtime when returning to the ordinary Phoenix home. */
+export function leaveNativeBotSurface(): void {
+  if (!isNativeBotSurface()) return
+  try {
+    sessionStorage.removeItem(OFFICE_KEY)
+    sessionStorage.removeItem(TARGET_KEY)
+    localStorage.setItem(SURFACE_KEY, 'agent')
+  } finally {
+    window.location.reload()
+  }
+}
+
 const PHOENIX_TERMS: ReadonlyArray<readonly [RegExp, string]> = [
   [/DS[- ]Bot ([\d.]+) 可以更新/gi, '协作引擎 $1 可以更新'],
   [/DS[- ]Bot ([\d.]+) is available/gi, '协作引擎 $1 可以更新'],
@@ -34,6 +62,20 @@ export function phoenixTerm(value: string): string {
   return PHOENIX_TERMS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value)
 }
 
+function markEmployeeAvatar(root: Element): void {
+  const marks: HTMLElement[] = []
+  if (root instanceof HTMLElement && root.matches('.bt-mark')) marks.push(root)
+  const parent = root.closest?.('.bt-mark')
+  if (parent instanceof HTMLElement && !marks.includes(parent)) marks.push(parent)
+  for (const mark of marks) {
+    if (!mark.querySelector(':scope > svg, :scope > .bt-mark-img')) continue
+    const colors = [...mark.querySelectorAll('[fill]')].map(node => node.getAttribute('fill') ?? '')
+    const color = colors.find(value => /^#[0-9a-f]{3,8}$/i.test(value) && !/^#(?:fff(?:fff)?|000(?:000)?)$/i.test(value))
+    mark.dataset.phoenixEmployee = ''
+    if (color) mark.style.setProperty('--phoenix-employee-color', color)
+  }
+}
+
 function brandNode(root: Node): void {
   if (root.nodeType === Node.TEXT_NODE) {
     const value = root.nodeValue
@@ -45,6 +87,7 @@ function brandNode(root: Node): void {
   }
   if (!(root instanceof Element)) return
   if (root.matches('script, style')) return
+  markEmployeeAvatar(root)
   for (const name of ['aria-label', 'title', 'placeholder', 'alt']) {
     const value = root.getAttribute(name)
     if (value) {
@@ -87,20 +130,10 @@ export function openNativeBotSurface(sessionId?: string): void {
   }
 }
 
-function returnToOffice(): void {
-  try {
-    sessionStorage.setItem(OFFICE_KEY, '1')
-    sessionStorage.removeItem(TARGET_KEY)
-    localStorage.setItem(SURFACE_KEY, 'agent')
-  } finally {
-    window.location.reload()
-  }
-}
-
 /** Native team surface footer entry back to the Phoenix office. */
-export function NativeOfficeReturn({ wide }: SidebarFooterActionOwnerProps) {
-  if (typeof localStorage === 'undefined' || localStorage.getItem(SURFACE_KEY) !== 'bot') return null
-  return <button type="button" className={css.return} onClick={returnToOffice} aria-label="返回 AI 办公室">
+export function NativeOfficeReturn({ wide, onClick }: SidebarFooterActionOwnerProps & { onClick: () => void }) {
+  if (!isNativeBotSurface()) return null
+  return <button type="button" className={css.return} onClick={onClick} aria-label="返回 AI 办公室">
     <img className={css.mark} src={flame} alt="" />
     {wide && <span className={css.label}>返回 AI 办公室</span>}
   </button>
@@ -109,11 +142,12 @@ export function NativeOfficeReturn({ wide }: SidebarFooterActionOwnerProps) {
 /** Restore the requested native chat after the one-time surface reload. */
 export function installNativeBotSurface(ctx: ClientContext): void {
   ctx.effect(installPhoenixSurfaceBranding, 'phoenix-office: brand native team surface')
-  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-    name: 'sidebar.footer.action', id: 'phoenix-office-return', order: -1_000,
-  }, NativeOfficeReturn))
 
   ctx.inject(['layout', 'sessions', 'uiWorkspace'], (scope) => {
+    scope.slots.inject('sidebar.footer.action', () => scope.slots.register({
+      name: 'sidebar.footer.action', id: 'phoenix-office-return', order: -1_000,
+      inject: () => ({ onClick: () => scope.layout.selectPanel('phoenix-office' as MainPanelId) }),
+    }, NativeOfficeReturn))
     scope.effect(() => {
       if (sessionStorage.getItem(OFFICE_KEY) !== '1') return () => {}
       sessionStorage.removeItem(OFFICE_KEY)

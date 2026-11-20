@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import css from './PhoenixOffice.module.css'
 import { OfficeScene } from './office/OfficeScene.tsx'
 import { officePeople, type OfficeBot as Bot, type OfficeState } from './office/model.ts'
@@ -28,8 +28,20 @@ function statusFor(bot: Bot, state: OfficeState | null): { label: string; busy: 
   return { label: '待命', busy: false }
 }
 
+const EMPLOYEE_COLORS = ['#ff7417', '#ffad18', '#8b5cf6', '#20a8a0', '#4584f5', '#ef5f7a', '#72a34b'] as const
+function employeeColor(id: string): string {
+  const hash = [...id].reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 0)
+  return EMPLOYEE_COLORS[hash % EMPLOYEE_COLORS.length] ?? '#ff7417'
+}
+
+type PhoenixOfficeProps = {
+  onHome: () => void
+  onEnterOffice?: () => void
+  onOpenNative: (sessionId?: string) => void
+}
+
 /** Phoenix's visual office. Complete employee and group management stays in one native data surface. */
-export function PhoenixOffice({ onHome, onOpenNative }: { onHome: () => void; onOpenNative: (sessionId?: string) => void }) {
+export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative }: PhoenixOfficeProps) {
   const [state, setState] = useState<OfficeState | null>(null)
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [selected, setSelected] = useState('')
@@ -40,6 +52,8 @@ export function PhoenixOffice({ onHome, onOpenNative }: { onHome: () => void; on
   const [playing, setPlaying] = useState(() => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   const [roomId, setRoomId] = useState('')
   const [hall, setHall] = useState(false)
+
+  useEffect(() => { onEnterOffice?.() }, [onEnterOffice])
 
   const refresh = useCallback(async () => {
     try {
@@ -85,7 +99,7 @@ export function PhoenixOffice({ onHome, onOpenNative }: { onHome: () => void; on
       </div>
       <div className={css.headerActions}>
         <span className={css.live}><i />{connectionError ? '状态未知' : `${working} 位工作中`} · {staff.length} 位员工</span>
-        <button type="button" className={css.primary} onClick={() => onOpenNative(nativeHome)} disabled={!state}>人事部 · 员工管理 ↗</button>
+        <button type="button" className={css.primary} onClick={() => onOpenNative(nativeHome)} disabled={!state}>员工列表与创建 ↗</button>
       </div>
     </header>
 
@@ -109,7 +123,13 @@ export function PhoenixOffice({ onHome, onOpenNative }: { onHome: () => void; on
       </div>
       {connectionError && <div className={css.error} role="alert">{connectionError} · 画面状态暂不可确认 <button onClick={() => { void refresh() }}>重试</button></div>}
       <div className={css.employeeBar}>
-        {selectedBot ? <><div><strong>{selectedBot.name}</strong><span>{selectedBot.role || '未设置岗位'} · {connectionError ? '状态未知' : statusFor(selectedBot, state).label}</span></div><button className={css.primary} disabled={!selectedBot.sessionId} onClick={() => onOpenNative(selectedBot.sessionId)}>员工资料与会话 ↗</button></> : <p>从上方选择员工，或点击办公室中的姓名牌查看资料与会话</p>}
+        {selectedBot ? <>
+          <span className={css.employeeAvatar} style={{ '--employee-color': employeeColor(selectedBot.id) } as CSSProperties} aria-hidden="true" />
+          <div><strong>{selectedBot.name}</strong><span>{selectedBot.role || '未设置岗位'} · {connectionError ? '状态未知' : statusFor(selectedBot, state).label}</span><small>{selectedBot.workDir ? `资料文件夹 · ${selectedBot.workDir}` : '尚未分配资料文件夹'}{selectedBot.model ? ` · ${selectedBot.model}` : ''}</small></div>
+          <button className={css.secondary} onClick={() => setFocused(!focused)}>{focused ? '返回总览' : '查看工位'}</button>
+          <button className={css.primary} disabled={!selectedBot.sessionId}
+            onClick={() => onOpenNative(selectedBot.sessionId)}>开始对话 →</button>
+        </> : <p>点击办公室中的小火人，即可在这里查看岗位、状态、资料文件夹并开始对话。</p>}
       </div>
       <section className={css.scene} aria-label="可视化办公室">
         <OfficeScene
@@ -122,8 +142,6 @@ export function PhoenixOffice({ onHome, onOpenNative }: { onHome: () => void; on
           onOverview={() => setFocused(false)}
           onSelect={(id) => {
             selectEmployee(id)
-            const bot = staff.find(item => item.id === id)
-            if (bot?.sessionId) onOpenNative(bot.sessionId)
           }}
           onCreate={() => onOpenNative(nativeHome)}
         />

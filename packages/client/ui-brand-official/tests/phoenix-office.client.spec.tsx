@@ -30,7 +30,7 @@ describe('Phoenix office native team integration', () => {
 
     await waitFor(() => expect(view.getAllByText('小羽 · 总指挥').length).toBeGreaterThan(0))
     expect(view.getByRole('heading', { name: 'AI 办公室' }).closest('header')?.hasAttribute('data-window-drag')).toBe(true)
-    fireEvent.click(view.getByRole('button', { name: '人事部 · 员工管理 ↗' }))
+    fireEvent.click(view.getByRole('button', { name: '员工列表与创建 ↗' }))
     expect(onOpenNative).toHaveBeenCalledWith('main-session')
     expect(calls).toEqual(['state'])
   })
@@ -50,7 +50,7 @@ describe('Phoenix office native team integration', () => {
     expect(view.queryByRole('option', { name: '员工0 · 研究助理' })).toBeNull()
     fireEvent.change(view.getByLabelText('员工视角'), { target: { value: 'bot-5' } })
     expect((view.getByLabelText('办公室楼层') as HTMLSelectElement).value).toBe('1')
-    fireEvent.click(view.getByRole('button', { name: '员工资料与会话 ↗' }))
+    fireEvent.click(view.getByRole('button', { name: '开始对话 →' }))
     expect(onOpenNative).toHaveBeenCalledWith('session-5')
 
     const frame = view.getByTitle('AI 办公室三维场景') as HTMLIFrameElement

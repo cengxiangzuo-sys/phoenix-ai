@@ -7,13 +7,14 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { PixelWhale } from './home-whale/PixelWhale.tsx'
 import { OfficialBrandMark, OfficialBrandName } from './Brand.tsx'
 import { PhoenixBrandMark, PhoenixBrandName } from './PhoenixBrand.tsx'
 import { installPhoenixTheme } from './PhoenixTheme.ts'
 import { PhoenixOffice, PhoenixOfficeIcon } from './PhoenixOffice.tsx'
 import { OfficeReturn } from './OfficeReturn.tsx'
-import { installNativeBotSurface, openNativeBotSurface } from './NativeBotSurface.tsx'
+import { enterNativeBotSurface, installNativeBotSurface, isNativeBotSurface, leaveNativeBotSurface, openNativeBotSurface } from './NativeBotSurface.tsx'
 
 /** Required service: the UI slot registry. */
 export const inject = ['slots']
@@ -40,10 +41,18 @@ export function apply(ctx: ClientContext): void {
         name: 'main', key: 'phoenix-office',
         inject: () => ({
           onHome: () => {
-            scope.layout.selectPanel(null)
-            scope.uiWorkspace.startSession()
+            if (isNativeBotSurface()) leaveNativeBotSurface()
+            else {
+              scope.layout.selectPanel(null)
+              scope.uiWorkspace.startSession()
+            }
           },
-          onOpenNative: (sessionId?: string) => { openNativeBotSurface(sessionId) },
+          onEnterOffice: enterNativeBotSurface,
+          onOpenNative: (sessionId?: string) => {
+            if (!isNativeBotSurface()) return openNativeBotSurface(sessionId)
+            scope.layout.selectPanel(null)
+            if (sessionId) scope.uiWorkspace.openSession(sessionId as SessionId)
+          },
         }),
       }, PhoenixOffice))
       scope.slots.inject('sidebar.panellist', () => scope.slots.register({
