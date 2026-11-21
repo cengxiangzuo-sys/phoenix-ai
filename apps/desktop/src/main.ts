@@ -72,6 +72,7 @@ import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
 import { phoenixMobileDownloadUrl, phoenixMobileMessages, PHOENIX_ANDROID_SHARE } from './phoenix-mobile.ts'
+import { PhoenixDesktopPet } from './phoenix-desktop-pet.ts'
 import { PHOENIX_PLUGIN_SEEDS, PHOENIX_PLUGINS_SEED, seedPhoenixPlugin } from './phoenix-remote.ts'
 
 // A packaged Phoenix build owns its own Harness home. Electron already gives
@@ -614,6 +615,7 @@ async function main(): Promise<void> {
           }
           if (state.status === 'credential-stored' && attempt?.phase === 'succeeded' && welcomeWindow !== undefined) void enterWorkspace({ activate: false }).catch(() => undefined)
           if (previousAccountStatus === 'credential-stored' && state.status === 'signed-out') {
+            desktopPet?.clearBalance()
             void readWelcomeState().then(async (value) => {
               if (needsWelcome(value) && !quitting) {
                 enteredWorkspace = false
@@ -1231,6 +1233,35 @@ async function main(): Promise<void> {
       { role: 'hideOthers', label: currentDesktopLocale().messages.hideOtherApplications },
       { role: 'unhide', label: currentDesktopLocale().messages.showAllApplications }, { type: 'separator' }]
     : []
+  const desktopPet = process.env.DSH_CLIENT_BRAND === 'phoenix' && (darwin || process.platform === 'win32')
+    ? new PhoenixDesktopPet({
+      openPhoenix: () => { focusPrimaryWindow() },
+      openSession: (id) => {
+        focusPrimaryWindow()
+        mainWindow?.webContents.send(DESKTOP_IPC.phoenixPetOpenSession, id)
+      },
+      onEnabled: (enabled) => { mainWindow?.webContents.send(DESKTOP_IPC.phoenixPetEnabled, enabled) },
+      readBalance: async () => {
+        if (!backendReady || welcomeBackend === undefined) return 'offline'
+        return welcomeBackend.account.balance(desktopClientMetadata(currentDesktopLocale().id))
+      },
+    })
+    : undefined
+  if (desktopPet !== undefined) {
+    ipcMain.handle(DESKTOP_IPC.phoenixPetGet, (event) => {
+      assertMainApplication(event)
+      return desktopPet.isVisible()
+    })
+    ipcMain.handle(DESKTOP_IPC.phoenixPetSet, (event, on: unknown) => {
+      assertMainApplication(event)
+      if (typeof on !== 'boolean' || quitting) throw new Error('Invalid desktop pet setting')
+      return desktopPet.setEnabled(on, currentDesktopLocale().id)
+    })
+    ipcMain.handle(DESKTOP_IPC.phoenixPetWork, (event, rows: unknown) => {
+      assertMainApplication(event)
+      desktopPet.reportWork(rows)
+    })
+  }
   const applicationItems = (): MenuItemConstructorOptions[] => [
     // Windows has no system About panel; Electron's fallback is a plain
     // message box, so the shell shows its own dimmed dialog instead.
@@ -1246,6 +1277,7 @@ async function main(): Promise<void> {
         click: () => { void showPhoenixMobile().catch((error: unknown) => { console.error(error) }) },
       }]
       : [],
+    ...desktopPet === undefined ? [] : [desktopPet.menuItem(currentDesktopLocale().id)],
     ...process.platform === 'darwin' || process.platform === 'win32'
       ? [{ label: currentDesktopLocale().messages.cliCommandMenu, click: () => { void commandManager.show() } }] : [],
     { type: 'separator' },
@@ -1529,7 +1561,8 @@ async function main(): Promise<void> {
   })
 
   app.on('activate', (_event, hasVisibleWindows) => {
-    if (!hasVisibleWindows) focusPrimaryWindow()
+    const workspace = welcomeWindow ?? mainWindow
+    if (!hasVisibleWindows || (desktopPet?.isVisible() === true && workspace?.isVisible() !== true)) focusPrimaryWindow()
   })
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
@@ -1542,6 +1575,7 @@ async function main(): Promise<void> {
     quitConfirmation.dispose()
     backgroundNotice?.dispose()
     tray?.dispose()
+    desktopPet?.dispose()
     stopAccount?.()
     if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.hide()
     if (mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.hide()
@@ -1565,6 +1599,7 @@ async function main(): Promise<void> {
       backgroundNotice?.dispose()
       updateJournal?.action('quit-requested')
       tray?.dispose()
+      desktopPet?.dispose()
       updateDialog.dispose()
       mandatoryUI?.dispose()
       // Installation preparation already awaited Platform storage cleanup.
@@ -1583,6 +1618,7 @@ async function main(): Promise<void> {
   })
 
   mainWindow = createMainWindow()
+  void desktopPet?.restore(currentDesktopLocale().id).catch(() => { console.warn('Phoenix desktop pet could not restore') })
   if (typeof manifest !== 'object' || manifest === null) throw new Error('desktop policy: invalid application manifest')
   const developmentPolicy = app.isPackaged ? undefined : process.env.DSH_DESKTOP_MANDATORY_UPDATE_CONFIG
   const policyInput: unknown = app.isPackaged

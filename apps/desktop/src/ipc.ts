@@ -32,6 +32,11 @@ export const DESKTOP_IPC = {
   fileDragStart: 'dsh-desktop:file-drag-start',
   fileDragRelease: 'dsh-desktop:file-drag-release',
   deviceInfo: 'dsh-desktop:device-info',
+  phoenixPetGet: 'phoenix-desktop:pet-get',
+  phoenixPetSet: 'phoenix-desktop:pet-set',
+  phoenixPetWork: 'phoenix-desktop:pet-work',
+  phoenixPetEnabled: 'phoenix-desktop:pet-enabled',
+  phoenixPetOpenSession: 'phoenix-desktop:pet-open-session',
   connectPhone: 'dsh-desktop:connect-phone',
   connectPhonePairing: 'dsh-desktop:connect-phone-pairing',
   localeBootstrap: 'dsh-desktop:locale-bootstrap',
@@ -108,6 +113,14 @@ export interface DshDesktopProductApi {
   readonly connectPhone?: () => Promise<void>
   /** Navigate to the remote plugin after the user selects pairing. */
   readonly onPhonePairing?: (listener: () => void) => () => void
+  /** Optional native Phoenix desktop companion controls. */
+  readonly phoenixPet?: {
+    enabled(): Promise<boolean>
+    setEnabled(on: boolean): Promise<boolean>
+    reportWork(rows: readonly { id: string; title: string }[]): Promise<void>
+    onEnabled(listener: (enabled: boolean) => void): () => void
+    onOpenSession(listener: (id: string) => void): () => void
+  }
   readonly updates: {
     readonly channels: DesktopChannelBridge
     status(): Promise<DesktopUpdatePresentation>

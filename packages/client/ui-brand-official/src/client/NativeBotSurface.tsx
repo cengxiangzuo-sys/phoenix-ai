@@ -19,16 +19,22 @@ export function isNativeBotSurface(): boolean {
   return typeof localStorage !== 'undefined' && localStorage.getItem(SURFACE_KEY) === 'bot'
 }
 
+/** @param id - Session identity. @returns whether the office has presented it. */
+export function isKnownEmployeeSession(id: string): boolean {
+  if (typeof localStorage === 'undefined') return false
+  try {
+    const seen = JSON.parse(localStorage.getItem(BOT_SEEN_KEY) ?? '{}') as Record<string, unknown>
+    return Object.hasOwn(seen, id)
+  } catch { return false }
+}
+
 /** Whether ordinary Harness navigation restored one of the employee runtime's Sessions. */
 export function isSelectedEmployeeSession(): boolean {
   if (typeof localStorage === 'undefined') return false
   try {
     const current = JSON.parse(localStorage.getItem(CURRENT_SESSION_KEY) ?? '{}') as { sessionId?: unknown }
-    const seen = JSON.parse(localStorage.getItem(BOT_SEEN_KEY) ?? '{}') as Record<string, unknown>
-    return typeof current.sessionId === 'string' && Object.hasOwn(seen, current.sessionId)
-  } catch {
-    return false
-  }
+    return typeof current.sessionId === 'string' && isKnownEmployeeSession(current.sessionId)
+  } catch { return false }
 }
 
 type OfficeNavigation = {
@@ -96,6 +102,15 @@ export function enterNativeBotSurface({ slots }: Pick<OfficeNavigation, 'slots'>
   localStorage.setItem(SURFACE_KEY, 'bot')
   document.documentElement.setAttribute('data-phoenix-employee-surface', '')
   surface.set(previous => ({ ...previous, mode: 'bot' }))
+}
+
+/** @param slots - Office surface slots. Switch to the ordinary chat surface without starting a new chat. */
+export function showOrdinaryConversationSurface(slots: OfficeNavigation['slots']): void {
+  const surface = nativeOfficeMode(slots)
+  if (surface?.getSnapshot().mode !== 'bot') return
+  localStorage.setItem(SURFACE_KEY, 'agent')
+  document.documentElement.removeAttribute('data-phoenix-employee-surface')
+  surface.set(previous => ({ ...previous, mode: 'agent' }))
 }
 
 /** Show the normal blank homepage before preparing its Workspace composer. */

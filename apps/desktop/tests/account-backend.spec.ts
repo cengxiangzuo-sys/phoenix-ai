@@ -39,6 +39,23 @@ it('uses account Remote commands without returning additional wire fields', asyn
   ])
 })
 
+it('reads only the display-safe wallet values and rejects malformed amounts', async () => {
+  const invoke = vi.fn().mockResolvedValue({
+    status: 'ready', value: [{ currency: 'CNY', balance: '12.34', token: 'private' }],
+    bonusWallets: [{ currency: 'USD', balance: '0E-16' }], token: 'private',
+  })
+  const backend = desktopAccountBackend('http://localhost', invoke, '')
+  const client = { version: '1.2.3', locale: 'en', timezoneOffsetSeconds: 0 }
+  expect(await backend.balance(client)).toEqual({
+    status: 'ready', value: [{ currency: 'CNY', balance: '12.34' }], bonusWallets: [{ currency: 'USD', balance: '0E-16' }],
+  })
+  expect(invoke).toHaveBeenCalledExactlyOnceWith({ namespace: 'account', method: 'getBalance', args: { client } })
+  invoke.mockResolvedValue({ status: 'ready', value: [{ currency: 'CNY', balance: 'NaN' }], bonusWallets: [] })
+  await expect(backend.balance(client)).rejects.toThrow()
+  invoke.mockResolvedValue(null)
+  await expect(backend.balance(client)).resolves.toBeNull()
+})
+
 it('does not replay an expiry reason from an account snapshot', () => {
   const state = { status: 'signed-out', attempt: null,
     links: { usageUrl: 'https://platform.deepseek.com/usage', topUpUrl: 'https://platform.deepseek.com/top_up' } }

@@ -36,6 +36,23 @@ function createProductApi(): DshDesktopProductApi {
     deviceInfo: () => ipcRenderer.invoke(DESKTOP_IPC.deviceInfo) as Promise<string>,
     ...(process.env.DSH_CLIENT_BRAND === 'phoenix'
       ? {
+        ...process.platform === 'darwin' || process.platform === 'win32' ? {
+          phoenixPet: {
+            enabled: () => ipcRenderer.invoke(DESKTOP_IPC.phoenixPetGet) as Promise<boolean>,
+            setEnabled: on => ipcRenderer.invoke(DESKTOP_IPC.phoenixPetSet, on) as Promise<boolean>,
+            reportWork: rows => ipcRenderer.invoke(DESKTOP_IPC.phoenixPetWork, rows) as Promise<void>,
+            onEnabled(listener) {
+              const handle = (_event: Electron.IpcRendererEvent, enabled: boolean): void => { listener(enabled) }
+              ipcRenderer.on(DESKTOP_IPC.phoenixPetEnabled, handle)
+              return () => { ipcRenderer.off(DESKTOP_IPC.phoenixPetEnabled, handle) }
+            },
+            onOpenSession(listener) {
+              const handle = (_event: Electron.IpcRendererEvent, id: string): void => { listener(id) }
+              ipcRenderer.on(DESKTOP_IPC.phoenixPetOpenSession, handle)
+              return () => { ipcRenderer.off(DESKTOP_IPC.phoenixPetOpenSession, handle) }
+            },
+          },
+        } : {},
         connectPhone: () => ipcRenderer.invoke(DESKTOP_IPC.connectPhone) as Promise<void>,
         onPhonePairing(listener: () => void) {
           const openPairing = (): void => { listener() }

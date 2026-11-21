@@ -5,6 +5,7 @@ import { WINDOWS_TITLEBAR_HEIGHT } from '../src/windows-layout.ts'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { IpcMainInvokeEvent } from 'electron'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import type { MenuItemConstructorOptions, MessageBoxOptions } from 'electron'
@@ -101,6 +102,7 @@ const harness = await vi.hoisted(async () => {
     readonly shown = deferred()
     readonly show = vi.fn(() => { this.shown.resolve() })
     readonly hide = vi.fn()
+    readonly showInactive = vi.fn()
     readonly focus = vi.fn()
     readonly moveTop = vi.fn()
     readonly setAlwaysOnTop = vi.fn()
@@ -123,6 +125,11 @@ const harness = await vi.hoisted(async () => {
     visible = true
     isVisible() { return this.visible }
     isFocused() { return true }
+    async loadFile(path: string, options: { query: Record<string, string> }) {
+      const url = pathToFileURL(path)
+      url.search = new URLSearchParams(options.query).toString()
+      await this.loadURL(url.href)
+    }
     async loadURL(url: string) {
       this.urls.push(url)
       this.webContents.mainFrame.url = url
@@ -328,6 +335,11 @@ vi.mock('electron', () => ({
   protocol: { registerSchemesAsPrivileged: vi.fn(), handle: harness.protocolHandle },
   powerMonitor: harness.powerMonitor,
   Tray: harness.FakeTray,
+  screen: {
+    getCursorScreenPoint: () => ({ x: 120, y: 120 }),
+    getDisplayNearestPoint: () => ({ workArea: { x: 0, y: 0, width: 900, height: 650 } }),
+    getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 900, height: 650 } }),
+  },
   nativeImage: { createFromPath: (path: string) => ({ path }) },
 }))
 vi.mock('../src/background-notice.ts', () => ({ DesktopBackgroundNotice: class {
@@ -1289,6 +1301,60 @@ describe('desktop main startup', () => {
     await harness.dialogShown.promise
     expect(vi.mocked(writeCrashReport).mock.calls[0]![1].app.locale).toBe('zh-CN')
     expect((harness.dialog.showMessageBox.mock.calls[0]![0] as MessageBoxOptions).message).toBe(zh.fatalSummary)
+  })
+
+  it.each(['darwin', 'win32'] as const)('opens one Phoenix desktop pet on demand and destroys it at quit (%s)', async (platform) => {
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+    await readyForUpdate()
+    const windowsBeforePet = harness.windows.length
+    const command = applicationMenuItems().find(item => item.label === 'Show desktop pet')
+    expect(command?.click).toBeTypeOf('function')
+    const open = command?.click as () => void
+    open()
+    open()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(harness.windows).toHaveLength(windowsBeforePet + 1)
+    const pet = harness.windows.at(-1)!
+    expect(pet.options).toMatchObject({
+      transparent: true, alwaysOnTop: true, x: 752, y: 486,
+      webPreferences: { sandbox: true, nodeIntegration: false },
+    })
+    expect(pet.showInactive).toHaveBeenCalledOnce()
+    expect(invoke(DESKTOP_IPC.phoenixPetGet, 'app')).toBe(true)
+    const contextMenu = { preventDefault: vi.fn() }
+    pet.webContents.emit('context-menu', contextMenu)
+    expect(contextMenu.preventDefault).toHaveBeenCalledOnce()
+    const animationItems = harness.menu.mock.lastCall![0]
+    expect(animationItems.slice(0, 4).map(item => item.label)).toEqual(['Follow work', 'Wave', 'Nap', 'Still'])
+    const selectWave = animationItems[1]!.click as () => void
+    selectWave()
+    expect(pet.webContents.send).toHaveBeenLastCalledWith('phoenix-desktop-pet:state', expect.objectContaining({ animation: 'wave' }))
+    expect(() => invoke(DESKTOP_IPC.phoenixPetWork, 'shell', [])).toThrow('Rejected Platform command')
+    const work = [{ id: 'session-running', title: 'Review chapter' }]
+    invoke(DESKTOP_IPC.phoenixPetWork, 'app', work)
+    expect(pet.webContents.send).toHaveBeenLastCalledWith('phoenix-desktop-pet:state', expect.objectContaining({ work }))
+    const target = pathToFileURL(join('desktop-test-app', 'renderer', 'phoenix-desktop-pet.html'))
+    const blocked = { url: 'https://example.test/?action=hide', preventDefault: vi.fn() }
+    pet.webContents.emit('will-navigate', blocked)
+    expect(blocked.preventDefault).toHaveBeenCalledOnce()
+    expect(pet.isDestroyed()).toBe(false)
+    const main = harness.windows[0]!
+    const focusCalls = main.focus.mock.calls.length
+    pet.webContents.emit('will-navigate', { url: `${target.href}?action=open`, preventDefault: vi.fn() })
+    expect(main.focus.mock.calls).toHaveLength(focusCalls + 1)
+    pet.webContents.emit('will-navigate', { url: `${target.href}?action=session&id=session-running`, preventDefault: vi.fn() })
+    expect(main.webContents.send).toHaveBeenCalledWith(DESKTOP_IPC.phoenixPetOpenSession, 'session-running')
+    pet.webContents.emit('will-navigate', { url: `${target.href}?action=hide`, preventDefault: vi.fn() })
+    expect(pet.isDestroyed()).toBe(true)
+    expect(invoke(DESKTOP_IPC.phoenixPetGet, 'app')).toBe(false)
+    await expect(invoke(DESKTOP_IPC.phoenixPetSet, 'app', true)).resolves.toBe(true)
+    await vi.advanceTimersByTimeAsync(0)
+    const reopened = harness.windows.at(-1)!
+    expect(reopened).not.toBe(pet)
+    harness.app.quit()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(reopened.isDestroyed()).toBe(true)
   })
 
   it('maps Windows caption menus to localized native commands and rejects foreign popup requests', async () => {

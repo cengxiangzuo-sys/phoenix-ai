@@ -1,8 +1,9 @@
 /** Native account commands and Gateway state stream; no renderer receives credentials. */
 import { randomUUID } from 'node:crypto'
 import WebSocket from 'ws'
+import { z } from 'zod'
 import { parseRemoteStreamServerMessage, REMOTE_STREAM_MUX_PATH } from '@deepseek-ai/dsh-api-gateway/stream-protocol'
-import type { AccountClientMetadata, AccountView, SignInAttemptId } from '@deepseek-ai/dsh-deepseek-account/types'
+import type { AccountClientMetadata, AccountDetails, AccountView, SignInAttemptId } from '@deepseek-ai/dsh-deepseek-account/types'
 
 /** Authenticated unary caller shared with native onboarding. */
 export type AccountInvoke = (request: { namespace: string; method: string; args: Record<string, unknown> }) => Promise<unknown>
@@ -53,10 +54,21 @@ function validateBrowserDestination(value: string): void {
   }
 }
 
+const walletSchema = z.object({
+  currency: z.enum(['CNY', 'USD']),
+  balance: z.string().max(80).regex(/^-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i),
+})
+const balanceSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('ready'), value: z.array(walletSchema), bonusWallets: z.array(walletSchema) }),
+  z.object({ status: z.literal('failed') }),
+]).nullable()
+
 /** Native account operations and explicitly owned stream lifetime. */
 export interface DesktopAccountBackend {
   /** @returns current account snapshot. */
   state(): Promise<AccountView>
+  /** @param client - current Desktop identity. @returns only the signed-in Platform wallet data. */
+  balance(client: AccountClientMetadata): Promise<AccountDetails['balance'] | null>
   /** @param client - this window's identity and current language. @returns new or already-running login attempt. */
   start(client: AccountClientMetadata): Promise<AccountView>
   /** @param id - attempt to cancel. @returns cancellation or completed commit state. */
@@ -88,6 +100,9 @@ export function desktopAccountBackend(origin: string, invoke: AccountInvoke, coo
     accountView(await invoke({ namespace: 'account', method, args }))
   return {
     state: () => call('getState'),
+    async balance(client) {
+      return balanceSchema.parse(await invoke({ namespace: 'account', method: 'getBalance', args: { client } }))
+    },
     start: client => call('startSignIn', { client, callbackOrigin: new URL(origin).origin, loginSource: 'desktop' }),
     cancel: attemptId => call('cancelSignIn', { attemptId }), signOut: client => call('signOut', { client }),
     watch(listener, failed, expired, onAnalyticsEnabledChanged) {

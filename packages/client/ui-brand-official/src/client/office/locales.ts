@@ -7,6 +7,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 export const zh = {
+  'pet.title': '桌宠',
+  'pet.description': '在桌面显示小火人。点击查看余额和会话，右键更换动画。',
+  'pet.failure': '更新桌宠设置失败，请重试',
   'employee.create': '新建员工',
   'employee.delete': '删除员工',
   'employee.deleteTitle': '删除「{name}」？',
@@ -20,6 +23,9 @@ export const zh = {
 }
 
 export const en: LocaleDictOf<'phoenix.office'> = {
+  'pet.title': 'Desktop pet',
+  'pet.description': 'Show the flame on your desktop. Click for balance and sessions, or right-click to change its animation.',
+  'pet.failure': 'Could not update the desktop pet setting. Try again.',
   'employee.create': 'Create employee',
   'employee.delete': 'Delete employee',
   'employee.deleteTitle': 'Delete “{name}”?',
