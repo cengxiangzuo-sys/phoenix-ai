@@ -35,7 +35,7 @@ import {
 import { desktopTargetPlatform, resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { desktopRuntimeFileExclusion } from './runtime-file-policy.ts'
 import { selectOfficeEngine } from '../../../scripts/libreoffice-packages.mjs'
-import { preparePhoenixRemoteSeed } from './prepare-phoenix-remote.ts'
+import { preparePhoenixPluginSeeds } from './prepare-phoenix-remote.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
@@ -141,8 +141,8 @@ async function main(): Promise<void> {
     await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:install', () => runPnpm(['install', '--prod', '--frozen-lockfile', '--trust-lockfile']))
     const packageSet = readDesktopCorePackageSet(BUILD_ROOT, release.version)
     if (process.env.DSH_CLIENT_BRAND === 'phoenix') {
-      await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:phoenix-remote',
-        () => preparePhoenixRemoteSeed(RUNTIME_ROOT, PNPM))
+      await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:phoenix-plugins',
+        () => preparePhoenixPluginSeeds(RUNTIME_ROOT, PNPM))
     }
     const targetName = resolveDesktopBuildTarget()
     const target = desktopTargetPlatform(targetName)

@@ -267,6 +267,26 @@ describe('official browser-brand plugin', () => {
     expect(actions.landOn).toBe(landOn)
   })
 
+  it('keeps the About star on the Phoenix repository when the native page updates', async () => {
+    onTestFinished(installPhoenixSurfaceBranding())
+    const about = document.createElement('div')
+    about.className = 'bt-about-hero'
+    const star = document.createElement('a')
+    star.className = 'bt-star'
+    const upstream = 'https://github.com/Fei2411/DS-Bot'
+    star.href = upstream
+    star.title = 'Star DS Bot on GitHub'
+    about.append(star)
+    document.body.append(about)
+    await act(async () => {})
+    expect(star.href).toBe('https://github.com/cengxiangzuo-sys/phoenix-ai')
+    star.href = upstream
+    star.setAttribute('aria-label', 'Star DS Bot on GitHub · 123 stars')
+    await act(async () => {})
+    expect(star.href).toBe('https://github.com/cengxiangzuo-sys/phoenix-ai')
+    expect(star.getAttribute('aria-label')).toBe('Star Phoenix AI on GitHub')
+  })
+
   it('keeps native creation and section menus mounted after an employee disappears', async () => {
     const ctx = new Context()
     const renderer = ctx.plugin({ apply: applyRenderer })

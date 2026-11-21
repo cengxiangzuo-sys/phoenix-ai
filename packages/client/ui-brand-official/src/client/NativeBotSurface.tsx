@@ -13,6 +13,7 @@ const NATIVE_OFFICE_SLOT = 'sidebar.footer.action'
 export const OFFICE_PANEL = 'phoenix-office' as MainPanelId
 const CURRENT_SESSION_KEY = 'dsh.sessions.current'
 const BOT_SEEN_KEY = 'ds-bot:seen'
+const PHOENIX_REPOSITORY_URL = 'https://github.com/cengxiangzuo-sys/phoenix-ai'
 
 export function isNativeBotSurface(): boolean {
   return typeof localStorage !== 'undefined' && localStorage.getItem(SURFACE_KEY) === 'bot'
@@ -188,6 +189,11 @@ function brandNode(root: Node): void {
       if (branded !== value) root.setAttribute(name, branded)
     }
   }
+  if (root.matches('.bt-about-hero a.bt-star')) {
+    if (root.getAttribute('href') !== PHOENIX_REPOSITORY_URL) root.setAttribute('href', PHOENIX_REPOSITORY_URL)
+    const title = root.getAttribute('title')
+    if (title && root.getAttribute('aria-label') !== title) root.setAttribute('aria-label', title)
+  }
   for (const child of root.childNodes) brandNode(child)
 }
 
@@ -208,7 +214,7 @@ export function installPhoenixSurfaceBranding(): () => void {
     childList: true,
     characterData: true,
     attributes: true,
-    attributeFilter: ['aria-label', 'title', 'placeholder', 'alt', 'fill', 'stop-color'],
+    attributeFilter: ['aria-label', 'title', 'placeholder', 'alt', 'fill', 'stop-color', 'href'],
   })
   return () => {
     observer.disconnect()

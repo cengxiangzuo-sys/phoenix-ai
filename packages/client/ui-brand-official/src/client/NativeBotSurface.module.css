@@ -20,6 +20,7 @@
 :global(body[data-phoenix-brand] .bt-return){display:none!important}
 :global(body[data-phoenix-brand] .bt-brand-whale svg){display:none}
 :global(body[data-phoenix-brand] .bt-brand-whale){width:24px;height:24px;background:url('./assets/phoenix-flame.svg') center/contain no-repeat}
+:global(body[data-phoenix-brand] .bt-about-hero .bt-star-count){display:none}
 :global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]){isolation:isolate}
 :global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]>svg),
 :global(body[data-phoenix-brand] .bt-mark[data-phoenix-employee]>.bt-mark-img){opacity:0}

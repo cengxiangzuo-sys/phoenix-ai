@@ -1,5 +1,7 @@
 # DeepSeek Harness
 
+Phoenix AI users can see the [product overview and release notes](PHOENIX_RELEASE.md).
+
 English | [中文](README.zh.md)
 
 DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).

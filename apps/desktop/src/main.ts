@@ -72,7 +72,7 @@ import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
 import { phoenixMobileDownloadUrl, phoenixMobileMessages, PHOENIX_ANDROID_SHARE } from './phoenix-mobile.ts'
-import { PHOENIX_REMOTE_SEED, seedPhoenixRemote } from './phoenix-remote.ts'
+import { PHOENIX_PLUGIN_SEEDS, PHOENIX_PLUGINS_SEED, seedPhoenixPlugin } from './phoenix-remote.ts'
 
 // A packaged Phoenix build owns its own Harness home. Electron already gives
 // the renamed bundle a distinct userData directory; keep Host data separate too.
@@ -391,12 +391,13 @@ async function main(): Promise<void> {
   const activeProject = paths.profile
   const manager = new DesktopProjectManager(paths, resources)
   const preparePhoenixProfile = process.env.DSH_CLIENT_BRAND === 'phoenix' ? async (): Promise<void> => {
-    try {
-      const runtimeAssets = development ? join(dirname(resources.dsh), 'runtime') : join(process.resourcesPath, 'runtime')
-      await seedPhoenixRemote({ profile: activeProject, runtime: resources, seed: join(runtimeAssets, PHOENIX_REMOTE_SEED) })
-    } catch (error) {
-      // The pairing action still offers installation if preparing the shipped copy fails.
-      console.warn('Phoenix Remote: could not prepare the preinstalled plugin', error)
+    const runtimeAssets = development ? join(dirname(resources.dsh), 'runtime') : join(process.resourcesPath, 'runtime')
+    for (const plugin of PHOENIX_PLUGIN_SEEDS) {
+      try {
+        await seedPhoenixPlugin({ profile: activeProject, runtime: resources, seed: join(runtimeAssets, PHOENIX_PLUGINS_SEED) }, plugin)
+      } catch (error) {
+        console.warn(`${plugin.packageName}: could not prepare the bundled plugin`, error)
+      }
     }
   } : undefined
   // Dock and Finder launches inherit only launchd's environment; every Host shares one login-shell read.

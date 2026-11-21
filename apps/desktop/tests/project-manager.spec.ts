@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import { DesktopProjectManager } from '../src/project-manager.ts'
-import { PHOENIX_REMOTE_PACKAGE, seedPhoenixRemote } from '../src/phoenix-remote.ts'
+import { PHOENIX_PLUGIN_SEEDS, PHOENIX_REMOTE_PACKAGE, seedPhoenixPlugin } from '../src/phoenix-remote.ts'
 import { readProfilePlugins } from '@deepseek-ai/dsh-app-boot'
 import { runtimeFixture } from './runtime-fixture.ts'
 
@@ -56,10 +56,10 @@ describe('desktop external plugin profile', () => {
     writeFileSync(join(markerDir, 'phoenix-remote-seeded'), '0.6.4\n')
     const installed = JSON.stringify(manifest)
     writeFileSync(path, installed)
-    const prepare = () => seedPhoenixRemote({
+    const prepare = () => seedPhoenixPlugin({
       profile, seed: join(root, 'absent-seed'),
       runtime: { dsh: manager.runtime.dsh, node: '', pnpm: '', nodeBin: '' },
-    })
+    }, PHOENIX_PLUGIN_SEEDS.find(plugin => plugin.packageName === PHOENIX_REMOTE_PACKAGE)!)
 
     await manager.applyRelease(prepare)
     expect(readFileSync(path, 'utf8')).toBe(installed)

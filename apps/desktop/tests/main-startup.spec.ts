@@ -182,6 +182,7 @@ const harness = await vi.hoisted(async () => {
     getLocale: (): string => 'en-US',
     getPreferredSystemLanguages: () => ['en-US'],
     getVersion: () => '1.0.0',
+    getName: () => 'DeepSeek Harness',
     getAppPath: (): string => 'desktop-test-app',
     setAppLogsPath: vi.fn(),
     getPath: vi.fn<(name: string) => string>(),

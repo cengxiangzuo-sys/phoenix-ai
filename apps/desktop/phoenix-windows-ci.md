@@ -8,7 +8,7 @@ Phoenix unsigned Windows builds reuse the local unsigned environment, with app I
 
 Local checks before dispatch: desktop-package-environment, windows-package-preset and package-target: 98 tests passed. The branded packaged-application regression added after the first run then passed together with the related packaging checks: 88 tests passed, followed by all five TypeScript gates.
 
-The first Windows run, [44463453705](https://github.com/cengxiangzuo-sys/phoenix-ai/actions/runs/44463453705), produced the NSIS file but exposed a real branded smoke-test bug: the verifier still tried to launch `DeepSeek Harness.exe` instead of `Phoenix AI.exe`. Commit `66edd882e4` resolves packaged paths from the selected brand and covers Windows, Apple Silicon and upstream identities.
+The first Windows run, [44463453705](https://github.com/cengxiangzuo-sys/phoenix-ai/actions/runs/44463453705), produced the NSIS file but exposed a real branded smoke-test bug: the verifier still tried to launch `DeepSeek Harness.exe` instead of `Phoenix AI.exe`. The follow-up resolves packaged paths from the selected brand and covers Windows, Apple Silicon and upstream identities.
 
 The follow-up Windows run, [44466836809](https://github.com/cengxiangzuo-sys/phoenix-ai/actions/runs/44466836809), passed on 2026-11-19 in 17 minutes 16 seconds. Locked dependency installation, packaging configuration tests, the complete unsigned package and packaged-runtime smoke, installer discovery, SHA-256 recording and artifact upload all passed. Its retained artifact is `phoenix-windows-x64-2`; retention expires on 2026-11-22.
 
