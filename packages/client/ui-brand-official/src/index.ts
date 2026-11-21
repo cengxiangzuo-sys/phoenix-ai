@@ -9,6 +9,14 @@ const COORDINATION_TOOLS = new Set(['message_bot', 'post_to_group'])
 const BUSY_CODE = 'PHOENIX_COORDINATION_BUSY'
 const BUSY_MESSAGE = 'Wait for the current employee reply before assigning the next employee. End this step now; the reply will wake you. 等待当前员工回复后再派发下一位员工。'
 
+/** Whether one collaboration call promises a later reply to this caller. */
+export function expectsCoordinationReply(name: string, args: unknown): boolean {
+  if (name === 'message_bot') return true
+  if (name !== 'post_to_group') return false
+  const values = typeof args === 'object' && args !== null ? args as { report_back?: unknown } : {}
+  return values.report_back === true
+}
+
 function coordinationLane(name: string, args: unknown): string {
   const values = typeof args === 'object' && args !== null ? args as { group?: unknown; to?: unknown } : {}
   const target = name === 'post_to_group' ? values.group : values.to
@@ -44,6 +52,10 @@ export function apply(ctx: Context): void {
   ctx.on('tools/execute', async (exec, next): Promise<ToolExecutionResult> => {
     const agentId = exec.agent?.id
     if (agentId === undefined || !COORDINATION_TOOLS.has(exec.name)) return next()
+    // A group announcement with report_back omitted/false is a write-only
+    // broadcast. It cannot acknowledge this caller later, so it must not occupy
+    // the reply gate or prevent a following addressed dispatch in the same step.
+    if (!expectsCoordinationReply(exec.name, exec.arguments)) return next()
     const lane = coordinationLane(exec.name, exec.arguments)
     if (!gate.reserve(agentId, lane, exec.callId)) return busyResult()
     try {

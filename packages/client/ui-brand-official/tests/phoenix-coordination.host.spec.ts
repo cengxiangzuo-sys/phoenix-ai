@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
+import { expectsCoordinationReply } from '../src/index.ts'
 import { PhoenixCoordinationGate } from '../src/phoenix-coordination.ts'
 
 describe('Phoenix coordination gate', () => {
+  it('distinguishes write-only group announcements from reply-bearing dispatches', () => {
+    expect(expectsCoordinationReply('message_bot', { to: 'employee' })).toBe(true)
+    expect(expectsCoordinationReply('post_to_group', { group: 'team', message: '公告' })).toBe(false)
+    expect(expectsCoordinationReply('post_to_group', { group: 'team', message: '公告', report_back: false })).toBe(false)
+    expect(expectsCoordinationReply('post_to_group', { group: 'team', message: '@员工 请回复', report_back: true })).toBe(true)
+  })
+
   it('permits only one outstanding employee dispatch per agent', () => {
     const gate = new PhoenixCoordinationGate()
     expect(gate.reserve('phoenix', 'group:project', 'call-1')).toBe(true)
