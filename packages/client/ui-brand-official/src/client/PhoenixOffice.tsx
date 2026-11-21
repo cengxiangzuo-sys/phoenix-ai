@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import css from './PhoenixOffice.module.css'
 import { OfficeScene } from './office/OfficeScene.tsx'
-import { officePeople, type OfficeBot as Bot, type OfficeState } from './office/model.ts'
+import { officePeople, visibleOfficePeople, type OfficeBot as Bot, type OfficeState } from './office/model.ts'
 
 export function PhoenixOfficeIcon({ size }: { size: number }) {
   return <span aria-hidden="true" style={{ fontSize: size * .83, lineHeight: 1 }}>▦</span>
@@ -52,6 +52,7 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative }: PhoenixOf
   const [playing, setPlaying] = useState(() => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   const [roomId, setRoomId] = useState('')
   const [hall, setHall] = useState(false)
+  const previousRoomIds = useRef<string[] | null>(null)
 
   useEffect(() => { onEnterOffice?.() }, [onEnterOffice])
 
@@ -71,14 +72,25 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative }: PhoenixOf
     return () => window.clearInterval(timer)
   }, [refresh])
 
+  useEffect(() => {
+    if (!state) return
+    const ids = state.rooms?.map(room => room.id) ?? []
+    const newRoom = previousRoomIds.current === null
+      ? ids.find(id => state.work?.rooms?.[id]?.length)
+      : ids.find(id => !previousRoomIds.current?.includes(id))
+    previousRoomIds.current = ids
+    if (newRoom && !roomId) setRoomId(newRoom)
+    if (roomId && !ids.includes(roomId)) setRoomId('')
+  }, [state, roomId])
+
   const staff = state?.bots ?? []
   const nativeHome = staff.find(bot => state?.mainBotIds.includes(bot.id))?.sessionId ?? staff.find(bot => bot.sessionId)?.sessionId
   const people = useMemo(() => officePeople(state, !!connectionError, roomId), [state, connectionError, roomId])
   const selectedBot = staff.find(bot => bot.id === selected)
+  const selectedPerson = people.find(person => person.id === selected)
   const floorCount = Math.max(1, ...people.map(person => person.floor + 1))
   const visibleFloor = Math.min(floor, floorCount - 1)
-  const visiblePeople = useMemo(() => people.filter(person => person.floor === visibleFloor
-    && (!person.activeRoomId || person.activeRoomId === roomId)), [people, visibleFloor, roomId])
+  const visiblePeople = useMemo(() => visibleOfficePeople(people, visibleFloor, roomId), [people, visibleFloor, roomId])
   const choices = staff.filter(bot => (!job || bot.role === job) && `${bot.name} ${bot.role}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
   const selectEmployee = (id: string) => {
     const person = people.find(item => item.id === id)
@@ -118,14 +130,14 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative }: PhoenixOf
         <label>楼层 <select aria-label="办公室楼层" value={visibleFloor} onChange={(event) => { setFloor(Number(event.target.value)); setFocused(false) }}>{Array.from({ length: floorCount }, (_, index) => <option key={index} value={index}>{index + 1} 层</option>)}</select></label>
         <label>群聊 <select aria-label="查看群聊" value={roomId} onChange={(event) => { setRoomId(event.target.value); setHall(false); setFocused(false) }}><option value="">个人工位</option>{state?.rooms?.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label>
         <button type="button" className={css.secondary} onClick={() => onOpenNative(nativeHome)} disabled={!state}>群聊与协作管理 ↗</button>
-        {activeRoom && <><button className={css.secondary} onClick={() => setHall(!hall)}>{hall ? '查看会议室' : '查看大厅席位'}</button><button className={css.secondary} onClick={() => onOpenNative(activeRoom.sessionId ?? nativeHome)}>打开群聊 ↗</button></>}
+        {activeRoom && <><button className={css.secondary} onClick={() => setHall(!hall)}>{hall ? '查看会议室' : '查看大厅席位'}</button><button className={css.secondary} onClick={() => onOpenNative(activeRoom.sessionId ?? nativeHome)}>打开群聊 ↗</button><span className={css.live}>会议席位 {Math.min(activeRoom.members.length, 16)} / 16</span></>}
         {elsewhere > 0 && <span className={css.live}>{elsewhere} 位员工在其他会议室</span>}
       </div>
       {connectionError && <div className={css.error} role="alert">{connectionError} · 画面状态暂不可确认 <button onClick={() => { void refresh() }}>重试</button></div>}
       <div className={css.employeeBar}>
         {selectedBot ? <>
           <span className={css.employeeAvatar} style={{ '--employee-color': employeeColor(selectedBot.id) } as CSSProperties} aria-hidden="true" />
-          <div><strong>{selectedBot.name}</strong><span>{selectedBot.role || '未设置岗位'} · {connectionError ? '状态未知' : statusFor(selectedBot, state).label}</span><small>{selectedBot.workDir ? `资料文件夹 · ${selectedBot.workDir}` : '尚未分配资料文件夹'}{selectedBot.model ? ` · ${selectedBot.model}` : ''}</small></div>
+          <div><strong>{selectedBot.name}</strong><span>{selectedBot.role || '未设置岗位'} · {selectedPerson?.activity ?? '待命'}</span><small>{selectedBot.workDir ? `资料文件夹 · ${selectedBot.workDir}` : '尚未分配资料文件夹'}{selectedBot.model ? ` · ${selectedBot.model}` : ''}</small></div>
           <button className={css.secondary} onClick={() => setFocused(!focused)}>{focused ? '返回总览' : '查看工位'}</button>
           <button className={css.primary} disabled={!selectedBot.sessionId}
             onClick={() => onOpenNative(selectedBot.sessionId)}>开始对话 →</button>
@@ -146,7 +158,7 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative }: PhoenixOf
           onCreate={() => onOpenNative(nativeHome)}
         />
       </section>
-      <p className={css.hint}>姓名与岗位来自 Phoenix 员工资料。工位按岗位分区，动作是实时状态示意；员工、群聊、模型、文件夹和协作设置使用同一份原生数据。</p>
+      <p className={css.hint}>姓名与岗位来自 Phoenix 员工资料。动作和提示依据员工实时任务类型显示；员工、群聊、模型、文件夹和协作设置使用同一份原生数据。</p>
       {state === null && !connectionError && <p className={css.loading}>正在连接办公室…</p>}
       {staff.length === 0 && state && <p className={css.empty}>办公室还没有员工。点击人事部开始建立 Phoenix 团队。</p>}
     </div>
