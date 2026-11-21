@@ -53,11 +53,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mapfile -t installers < <(find phoenix-windows -type f -name 'phoenix-ai-*.exe' -print)
+          test "${#installers[@]}" -eq 1
           gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$SOURCE_SHA" \
             --title "Phoenix AI Windows ${SOURCE_SHA:0:8}" \
             --notes "Unsigned Phoenix AI Windows x64 test installer built from commit $SOURCE_SHA. Windows may show a SmartScreen warning because this candidate is not code-signed." \
             --prerelease \
-            phoenix-windows/phoenix-ai-*.exe \
+            "${installers[0]}" \
             phoenix-windows/phoenix-windows-sha256.txt
