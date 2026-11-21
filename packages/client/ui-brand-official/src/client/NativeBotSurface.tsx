@@ -4,15 +4,12 @@ import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { SidebarFooterActionOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type {} from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import flame from './assets/phoenix-flame.svg'
 import css from './NativeBotSurface.module.css'
 
 const SURFACE_KEY = 'ds-bot:surface'
-const TARGET_KEY = 'phoenix.native-bot.target.v1'
-const OFFICE_KEY = 'phoenix.native-bot.office.v1'
-const HOME_KEY = 'phoenix.native-bot.home.v1'
+const NATIVE_OFFICE_SLOT = 'sidebar.footer.action'
+export const OFFICE_PANEL = 'phoenix-office' as MainPanelId
 const CURRENT_SESSION_KEY = 'dsh.sessions.current'
 const BOT_SEEN_KEY = 'ds-bot:seen'
 
@@ -32,30 +29,84 @@ export function isSelectedEmployeeSession(): boolean {
   }
 }
 
-/** Make the visual office and the employee runtime one surface. */
-export function enterNativeBotSurface(): void {
-  if (isNativeBotSurface()) return
-  try {
-    sessionStorage.setItem(OFFICE_KEY, '1')
-    sessionStorage.removeItem(TARGET_KEY)
-    localStorage.setItem(SURFACE_KEY, 'bot')
-  } finally {
-    window.location.reload()
+type OfficeNavigation = {
+  slots: Pick<ClientContext['slots'], 'entries'>
+  uiWorkspace: Pick<ClientContext['uiWorkspace'], 'clearSelection' | 'startSession'>
+  layout: Pick<ClientContext['layout'], 'selectPanel'>
+}
+type NativeOfficeActions = {
+  setSurface(mode: 'agent' | 'bot'): void
+  openSession(sessionId: string): void
+  landOn(id: string, previous?: { botId: string; sessionId: string }): Promise<void>
+}
+type NativeOfficeMode = {
+  getSnapshot(): { mode: 'agent' | 'bot' }
+  set(update: (previous: { mode: 'agent' | 'bot' }) => { mode: 'agent' | 'bot' }): void
+}
+
+function hasNativeOfficeActions(value: unknown): value is NativeOfficeActions {
+  return typeof value === 'object' && value !== null
+    && 'setSurface' in value && typeof value.setSurface === 'function'
+    && 'openSession' in value && typeof value.openSession === 'function'
+    && 'landOn' in value && typeof value.landOn === 'function'
+}
+
+/** The employee plugin keeps its footer entry registered in both modes. */
+function nativeOfficeEntry(slots: OfficeNavigation['slots']) {
+  const entry = slots.entries(NATIVE_OFFICE_SLOT).find(item => item.options.id === 'bot-return')
+  return entry?.inject?.()
+}
+
+function nativeOfficeMode(slots: OfficeNavigation['slots']): NativeOfficeMode | undefined {
+  const hooks = nativeOfficeEntry(slots)?.hooks
+  if (typeof hooks !== 'object' || hooks === null || !('surface' in hooks)) return undefined
+  const surface = hooks.surface
+  if (typeof surface !== 'object' || surface === null || !('getSnapshot' in surface)
+    || typeof surface.getSnapshot !== 'function' || !('set' in surface) || typeof surface.set !== 'function') return undefined
+  return surface as NativeOfficeMode
+}
+
+function nativeOfficeActions(slots: OfficeNavigation['slots']): NativeOfficeActions | undefined {
+  const actions = nativeOfficeEntry(slots)?.actions
+  return hasNativeOfficeActions(actions) ? actions : undefined
+}
+
+/** The native sidebar's automatic landing must not replace the selected office panel. */
+export function guardNativeOfficeLanding(actions: Pick<NativeOfficeActions, 'landOn'>, canLand: () => boolean): () => void {
+  const original = actions.landOn
+  const guarded: NativeOfficeActions['landOn'] = async (id, previous) => {
+    if (canLand()) await original.call(actions, id, previous)
+  }
+  actions.landOn = guarded
+  return () => {
+    if (actions.landOn === guarded) actions.landOn = original
   }
 }
 
-/** Leave the employee runtime when returning to the ordinary Phoenix home. */
-export function leaveNativeBotSurface(): void {
-  if (!isNativeBotSurface()) return
-  try {
-    document.documentElement.removeAttribute('data-phoenix-employee-surface')
-    sessionStorage.removeItem(OFFICE_KEY)
-    sessionStorage.removeItem(TARGET_KEY)
-    sessionStorage.setItem(HOME_KEY, '1')
-    localStorage.setItem(SURFACE_KEY, 'agent')
-  } finally {
-    window.location.reload()
-  }
+/** Enable the native team sidebar without opening the chief's conversation over the office. */
+export function enterNativeBotSurface({ slots }: Pick<OfficeNavigation, 'slots'>): void {
+  const surface = nativeOfficeMode(slots)
+  if (!surface || surface.getSnapshot().mode === 'bot') return
+  // The native mode action also navigates to the chief. The visual office
+  // only changes the shell mode, keeping the currently selected panel and draft.
+  localStorage.setItem(SURFACE_KEY, 'bot')
+  document.documentElement.setAttribute('data-phoenix-employee-surface', '')
+  surface.set(previous => ({ ...previous, mode: 'bot' }))
+}
+
+/** Show the normal blank homepage before preparing its Workspace composer. */
+export function leaveNativeBotSurface({ slots, uiWorkspace, layout }: OfficeNavigation): void {
+  document.documentElement.removeAttribute('data-phoenix-employee-surface')
+  nativeOfficeActions(slots)?.setSurface('agent')
+  uiWorkspace.clearSelection()
+  layout.selectPanel(null)
+  uiWorkspace.startSession()
+}
+
+/** Use the employee runtime's own Session navigation and roster lookup. */
+export function openNativeBotSession(navigation: OfficeNavigation, sessionId: string): void {
+  enterNativeBotSurface(navigation)
+  nativeOfficeActions(navigation.slots)?.openSession(sessionId)
 }
 
 const PHOENIX_TERMS: ReadonlyArray<readonly [RegExp, string]> = [
@@ -154,22 +205,9 @@ export function installPhoenixSurfaceBranding(): () => void {
   }
 }
 
-/** Enter the complete native team surface through the Phoenix office. */
-export function openNativeBotSurface(sessionId?: string): void {
-  try {
-    if (sessionId) sessionStorage.setItem(TARGET_KEY, sessionId)
-    else sessionStorage.removeItem(TARGET_KEY)
-    localStorage.setItem(SURFACE_KEY, 'bot')
-  } finally {
-    window.location.reload()
-  }
-}
-
-/** Cancel Phoenix's pending boot navigation and select the visual office. */
+/** Return from a native employee or group conversation to the visual office. */
 export function returnToPhoenixOffice(selectPanel: (panel: MainPanelId) => void): void {
-  sessionStorage.removeItem(TARGET_KEY)
-  sessionStorage.removeItem(OFFICE_KEY)
-  selectPanel('phoenix-office' as MainPanelId)
+  selectPanel(OFFICE_PANEL)
 }
 
 /** Native team surface footer entry back to the Phoenix office. */
@@ -181,72 +219,44 @@ export function NativeOfficeReturn({ wide, onClick }: SidebarFooterActionOwnerPr
   </button>
 }
 
-/** Restore the requested native chat after the one-time surface reload. */
+/** Brand the employee view and protect ordinary navigation after a cold start. */
 export function installNativeBotSurface(ctx: ClientContext): void {
   ctx.effect(installPhoenixSurfaceBranding, 'phoenix-office: brand native team surface')
 
-  ctx.inject(['layout', 'sessions', 'uiWorkspace'], (scope) => {
+  ctx.inject(['layout', 'uiWorkspace'], (scope) => {
     scope.slots.inject('sidebar.footer.action', () => scope.slots.register({
       name: 'sidebar.footer.action', id: 'phoenix-office-return', order: -1_000,
       inject: () => ({ onClick: () => returnToPhoenixOffice(panel => scope.layout.selectPanel(panel)) }),
     }, NativeOfficeReturn))
     scope.effect(() => {
-      const leftOffice = sessionStorage.getItem(HOME_KEY) === '1'
-      if (isNativeBotSurface() || (!leftOffice && !isSelectedEmployeeSession())) return () => {}
+      if (isNativeBotSurface() || !isSelectedEmployeeSession()) return () => {}
       // Do not expose an employee Session as an ordinary Harness conversation
       // after leaving the office or restoring a previous desktop selection.
       const timer = window.setTimeout(() => {
-        scope.layout.selectPanel(null)
+        if (isNativeBotSurface() || scope.layout.panelInfo.getSnapshot().activePanelId !== null
+          || !isSelectedEmployeeSession()) return
+        scope.uiWorkspace.clearSelection()
         scope.uiWorkspace.startSession()
-        sessionStorage.removeItem(HOME_KEY)
       }, 1_000)
       return () => { window.clearTimeout(timer) }
     }, 'phoenix-office: restore normal home after office')
 
     scope.effect(() => {
-      if (sessionStorage.getItem(OFFICE_KEY) !== '1') return () => {}
-      // The reused team runtime restores its last chat shortly after mount. Select the
-      // office after that restore so a home-page click cannot be overwritten by it.
-      const timer = window.setTimeout(() => {
-        if (sessionStorage.getItem(OFFICE_KEY) !== '1') return
-        scope.layout.selectPanel('phoenix-office' as MainPanelId)
-        sessionStorage.removeItem(OFFICE_KEY)
-      }, 1_000)
-      return () => { window.clearTimeout(timer) }
-    }, 'phoenix-office: restore office after native team')
-
-    scope.effect(() => {
-      const target = sessionStorage.getItem(TARGET_KEY)
-      if (!target || localStorage.getItem(SURFACE_KEY) !== 'bot') return () => {}
-      const sessionId = target as SessionId
-      let timer: number | undefined
-      let unsubscribe = () => {}
-      const stage = () => {
-        if (sessionStorage.getItem(TARGET_KEY) !== target) {
-          unsubscribe()
-          return true
+      const officeSelected = () => scope.layout.panelInfo.getSnapshot().activePanelId === OFFICE_PANEL
+      let actions: NativeOfficeActions | undefined
+      let restore = () => {}
+      const reconcile = () => {
+        const next = nativeOfficeActions(scope.slots)
+        if (next !== actions) {
+          restore()
+          actions = next
+          restore = next ? guardNativeOfficeLanding(next, () => !officeSelected() && isNativeBotSurface()) : () => {}
         }
-        const list = scope.sessions.list.getSnapshot()
-        if (list.byId[sessionId] !== undefined) {
-          unsubscribe()
-          // The team plugin restores its previous chat after the Session list is ready.
-          // Wait for that restore, then select the requested employee exactly once.
-          timer = window.setTimeout(() => {
-            if (sessionStorage.getItem(TARGET_KEY) !== target) return
-            scope.layout.selectPanel(null)
-            scope.uiWorkspace.openSession(sessionId)
-            sessionStorage.removeItem(TARGET_KEY)
-          }, 800)
-          return true
-        }
-        if (list.phase === 'ready') sessionStorage.removeItem(TARGET_KEY)
-        return false
+        if (officeSelected()) enterNativeBotSurface(scope)
       }
-      if (!stage()) unsubscribe = scope.sessions.list.subscribe(stage)
-      return () => {
-        unsubscribe()
-        if (timer !== undefined) window.clearTimeout(timer)
-      }
-    }, 'phoenix-office: open native team chat')
+      const unsubscribe = scope.slots.subscribe(NATIVE_OFFICE_SLOT, reconcile)
+      reconcile()
+      return () => { unsubscribe(); restore() }
+    }, 'phoenix-office: keep native landing out of the visual office')
   })
 }

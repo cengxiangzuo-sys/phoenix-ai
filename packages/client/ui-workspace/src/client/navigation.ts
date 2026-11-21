@@ -43,6 +43,8 @@ export interface UiWorkspace {
    * @param target - known Session identity or durable direct-parent subagent address to display.
    */
   openSession(target: SessionTarget): void
+  /** Clear the current Session and cancel pending navigation, retaining the selected main panel. */
+  clearSelection(): void
   /**
    * Connect a Workspace and open its Session unless a later navigation supersedes it.
    * @param workspaceId - target Workspace.
@@ -294,6 +296,13 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     this.replaceMain(target, this.lifetime.signal, 'reveal')
   }
 
+  clearSelection(): void {
+    // An explicit clear also supersedes a restore that has not reached the Host yet.
+    this.restorationNavigation = AbortSignal.abort()
+    this.ctx.layout.beginNavigation()
+    this.resetMainSelection()
+  }
+
   openWorkspace(
     workspaceId: WorkspaceId,
     beforeOpen?: (sessionId: SessionId) => void,
@@ -341,9 +350,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       || (draftOptions.whenDraftExists ?? (draftOptions.clearPreviousDraft === true ? 'replace' : 'keep')) === 'replace')
     const workspace = this.workspaces.list.getSnapshot()
     const sessions = this.sessions.list.getSnapshot()
-    const newSessionWorkspaces = process.env.DSH_CLIENT_BRAND === 'phoenix'
-      ? workspace.items.filter(item => !/\/bot\/workspace\/?$/.test(item.path))
-      : workspace.items
+    const newSessionWorkspaces = ordinaryWorkspaces(workspace.items)
     const current = this.mainReference?.sessionId
     const currentWorkspaceId = current === undefined
       ? undefined
@@ -485,7 +492,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       && !workspaces.archivedSessionIds.includes(summary.id)) {
       sessionId = await this.restoreBlank(workspace.workspaceId, summary.id)
     }
-    let target = workspace?.workspaceId ?? recentWorkspace(workspaces.items, sessions.byId)
+    let target = workspace?.workspaceId ?? recentWorkspace(ordinaryWorkspaces(workspaces.items), sessions.byId)
     if (target === undefined && workspaces.items.length === 0 && sessions.ids.length === 0) {
       const prepared = await this.initializeDefaultWorkspace(navigation)
       if (navigation.aborted) return
@@ -516,11 +523,15 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   private clearMain(): void {
+    this.resetMainSelection()
+    this.ctx.layout.selectPanel(null)
+  }
+
+  private resetMainSelection(): void {
     const previous = this.mainReference
     this.mainReference = undefined
     this.selection.set({})
     previous?.release()
-    this.ctx.layout.selectPanel(null)
   }
 
   private replaceMain(
@@ -577,6 +588,12 @@ function creationFailureMessage(error: unknown): string {
 }
 
 /** Stable tie-breaking follows Host Workspace order. */
+function ordinaryWorkspaces(workspaces: readonly WorkspaceView[]): readonly WorkspaceView[] {
+  return process.env.DSH_CLIENT_BRAND === 'phoenix'
+    ? workspaces.filter(item => !/\/bot\/workspace\/?$/.test(item.path))
+    : workspaces
+}
+
 function recentWorkspace(
   workspaces: readonly WorkspaceView[],
   sessions: SessionListState['byId'],

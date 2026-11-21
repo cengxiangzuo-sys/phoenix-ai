@@ -32,6 +32,7 @@ const contexts: Context[] = []
 afterEach(async () => {
   for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   vi.restoreAllMocks()
 })
 
@@ -434,6 +435,24 @@ describe('UiWorkspaceService', () => {
     const b = bench()
     b.sessions.retain.mockImplementationOnce(() => { throw new Error('open failed') })
     expect(() => { b.uiWorkspace.openSession(sid('target')) }).toThrow('open failed')
+    expect(b.selectPanel).not.toHaveBeenCalled()
+  })
+
+  it('clears an open session without revealing it or letting a pending workspace reopen it', async () => {
+    const b = bench({ workspaces: workspaceState([workspace('a')]) })
+    b.uiWorkspace.openSession(sid('current'))
+    b.layout.selectPanel('office' as MainPanelId)
+    b.selectPanel.mockClear()
+    const pending = Promise.withResolvers<SessionId>()
+    b.sessions.create.mockReturnValueOnce(pending.promise)
+    const opening = b.uiWorkspace.openWorkspace(wid('a'))
+
+    b.uiWorkspace.clearSelection()
+    pending.resolve(sid('late'))
+    await opening
+
+    expect(b.sessions.retained[0]!.release).toHaveBeenCalledOnce()
+    expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('current'), { source: 'mainView' })
     expect(b.selectPanel).not.toHaveBeenCalled()
   })
 
@@ -1026,6 +1045,21 @@ describe('UiWorkspaceService', () => {
     b.sessions.list.set(sessionState())
     await vi.waitFor(() => {
       expect(b.sessions.retain).toHaveBeenCalledWith(sid('created-newest'), { source: 'mainView' })
+    })
+  })
+
+  it('opens the ordinary Phoenix landing Session when the office workspace is newer', async () => {
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    const b = bench({
+      sessions: sessionState(),
+      workspaces: workspaceState([
+        { ...workspace('employee', [], '2026-03-01T00:00:00.000Z'), path: '/test/bot/workspace' },
+        workspace('personal', [], '2026-01-01T00:00:00.000Z'),
+      ]),
+    })
+    await vi.waitFor(() => {
+      expect(b.sessions.create).toHaveBeenCalledExactlyOnceWith({ workspaceId: wid('personal') })
+      expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('created-personal'), { source: 'mainView' })
     })
   })
 

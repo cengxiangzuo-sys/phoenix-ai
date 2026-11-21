@@ -17,6 +17,16 @@ const reportFailure = (reason: unknown): void => {
 try {
   const el = document.getElementById('root')
   if (el === null) throw new Error('web app: missing #root')
+  if (desktop !== undefined && process.env.DSH_CLIENT_BRAND === 'phoenix') {
+    try {
+      // A fresh desktop window opens the ordinary Phoenix landing page.
+      // These keys hold the view selection only; drafts and logs are separate.
+      localStorage.setItem('ds-bot:surface', 'agent')
+      localStorage.removeItem('dsh.sessions.current')
+    } catch (error) {
+      console.warn('Phoenix could not reset its saved startup view', error)
+    }
+  }
   const entry = new AppWebEntry(el)
   if (desktop !== undefined) {
     const gate = (globalThis as { __DSH_BOOT_READY__?: PromiseWithResolvers<void> }).__DSH_BOOT_READY__

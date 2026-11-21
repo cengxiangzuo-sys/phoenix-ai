@@ -7,7 +7,7 @@ import { apply, inject } from '../src/client/index.ts'
 import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
 import { PHOENIX_THEME_TOKENS } from '../src/client/PhoenixTheme.ts'
 import { OfficeReturn } from '../src/client/OfficeReturn.tsx'
-import { installPhoenixSurfaceBranding, isSelectedEmployeeSession, returnToPhoenixOffice } from '../src/client/NativeBotSurface.tsx'
+import { enterNativeBotSurface, guardNativeOfficeLanding, installPhoenixSurfaceBranding, isSelectedEmployeeSession, leaveNativeBotSurface, openNativeBotSession, returnToPhoenixOffice } from '../src/client/NativeBotSurface.tsx'
 
 afterEach(() => {
   cleanup()
@@ -195,13 +195,55 @@ describe('official browser-brand plugin', () => {
     expect(document.documentElement.hasAttribute('data-phoenix-employee-surface')).toBe(false)
   })
 
-  it('returns to the visual office once and clears both boot destinations', () => {
-    sessionStorage.setItem('phoenix.native-bot.target.v1', 'employee-1')
-    sessionStorage.setItem('phoenix.native-bot.office.v1', '1')
+  it('returns directly from an employee chat to the visual office', () => {
     const selectPanel = vi.fn()
     returnToPhoenixOffice(selectPanel)
-    expect(sessionStorage.getItem('phoenix.native-bot.target.v1')).toBeNull()
-    expect(sessionStorage.getItem('phoenix.native-bot.office.v1')).toBeNull()
     expect(selectPanel).toHaveBeenCalledExactlyOnceWith('phoenix-office')
+  })
+
+  it('switches office and home in the same document without asking the native switch to open the chief', () => {
+    const calls: string[] = []
+    type Surface = { mode: 'bot' | 'agent'; plain: boolean }
+    let surface: Surface = { mode: 'agent', plain: true }
+    const hooks = {
+      surface: {
+        getSnapshot: () => surface,
+        set: (update: (state: Surface) => Surface) => { surface = update(surface); calls.push(surface.mode) },
+      },
+    }
+    const actions = {
+      setSurface: (next: Surface['mode']) => { surface = { ...surface, mode: next }; calls.push(next) },
+      openSession: (id: string) => calls.push(id),
+      landOn: async () => {},
+    }
+    const slots = { entries: () => [{ options: { id: 'bot-return' }, component: () => null, inject: () => ({ actions, hooks }) }] }
+    const uiWorkspace = {
+      clearSelection: () => { calls.push('clear') },
+      startSession: () => { calls.push('start') },
+    }
+    const layout = { selectPanel: () => { calls.push('home') } }
+    const navigation = { slots, uiWorkspace, layout }
+
+    enterNativeBotSurface(navigation)
+    expect(surface).toEqual({ mode: 'bot', plain: true })
+    openNativeBotSession(navigation, 'employee-1')
+    expect(document.documentElement.hasAttribute('data-phoenix-employee-surface')).toBe(true)
+    leaveNativeBotSurface(navigation)
+    expect(document.documentElement.hasAttribute('data-phoenix-employee-surface')).toBe(false)
+    expect(calls).toEqual(['bot', 'employee-1', 'agent', 'clear', 'home', 'start'])
+  })
+
+  it('suppresses native sidebar auto-navigation while the office is visible and restores it on teardown', async () => {
+    const landOn = vi.fn(async (_id: string) => {})
+    const actions = { landOn }
+    let officeVisible = true
+    const dispose = guardNativeOfficeLanding(actions, () => !officeVisible)
+    await actions.landOn('chief')
+    expect(landOn).not.toHaveBeenCalled()
+    officeVisible = false
+    await actions.landOn('chief')
+    expect(landOn).toHaveBeenCalledOnce()
+    dispose()
+    expect(actions.landOn).toBe(landOn)
   })
 })

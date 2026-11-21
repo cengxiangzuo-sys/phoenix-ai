@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import { phoenixTerm } from './NativeBotSurface.tsx'
@@ -62,7 +62,7 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative, t }: Phoeni
   const readSequence = useRef(0)
   const previousRoomIds = useRef<string[] | null>(null)
 
-  useEffect(() => { onEnterOffice?.() }, [onEnterOffice])
+  useLayoutEffect(() => { onEnterOffice?.() }, [onEnterOffice])
 
   const refresh = useCallback(async () => {
     const sequence = ++readSequence.current
