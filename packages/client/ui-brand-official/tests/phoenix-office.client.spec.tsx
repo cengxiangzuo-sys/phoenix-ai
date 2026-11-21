@@ -6,7 +6,7 @@ import { PhoenixOffice } from '../src/client/PhoenixOffice.tsx'
 import { phoenixTerm } from '../src/client/NativeBotSurface.tsx'
 import { zh } from '../src/client/office/locales.ts'
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+afterEach(() => { cleanup(); sessionStorage.clear(); vi.unstubAllGlobals() })
 
 const t: TranslateNS<'phoenix.office'> = (key, params) => {
   const template = Object.hasOwn(zh, key) ? zh[key as keyof typeof zh] : key
@@ -91,6 +91,35 @@ describe('Phoenix office native team integration', () => {
     fireEvent.click(view.getByRole('button', { name: '群聊与协作管理 ↗' }))
     expect(onOpenNative).toHaveBeenLastCalledWith('main-session')
     expect(calls).toEqual(['state'])
+  })
+
+  it('restores the selected meeting after reopening and sends the scene its last frame once the roster is ready', async () => {
+    installRoster({
+      bots: [{ id: 'worker', sessionId: 'employee-session', name: '测试员工', role: '研究助理' }],
+      mainBotIds: [], models: [], defaultModel: null,
+      rooms: [{ id: 'meeting', name: '演示会议', members: ['worker'], sessionId: 'group-session' }],
+    }, [])
+    const office = () => <PhoenixOffice t={t} onHome={() => {}} onOpenNative={vi.fn()} />
+    const first = render(office())
+    await first.findByRole('option', { name: '演示会议' })
+    fireEvent.change(first.getByLabelText('查看群聊'), { target: { value: 'meeting' } })
+    const previousFrame = first.getByTitle('AI 办公室三维场景') as HTMLIFrameElement
+    const checkpoint = { key: '[0,"meeting",false]', elapsed: 12,
+      camera: { yaw: .9, pitch: .7, zoom: 1.5 }, people: [] }
+    fireEvent(window, new MessageEvent('message', { source: previousFrame.contentWindow, origin: 'null',
+      data: { channel: 'phoenix-office', action: 'checkpoint', frame: checkpoint } }))
+    first.unmount()
+
+    const reopened = render(office())
+    await reopened.findByRole('option', { name: '演示会议' })
+    expect((reopened.getByLabelText('查看群聊') as HTMLSelectElement).value).toBe('meeting')
+    const frame = reopened.getByTitle('AI 办公室三维场景') as HTMLIFrameElement
+    const publish = vi.spyOn(frame.contentWindow!, 'postMessage')
+    fireEvent(window, new MessageEvent('message', { source: frame.contentWindow, origin: 'null',
+      data: { channel: 'phoenix-office', action: 'ready' } }))
+    expect(publish).toHaveBeenCalledWith(expect.objectContaining({
+      checkpoint, key: checkpoint.key, people: [expect.objectContaining({ id: 'worker', meeting: true })],
+    }), '*')
   })
 
   it('removes upstream product names from visible native-surface wording', () => {

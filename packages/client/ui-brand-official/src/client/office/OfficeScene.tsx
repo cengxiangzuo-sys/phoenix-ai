@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { officeDocument } from './document.ts'
 import type { OfficePerson } from './model.ts'
+import { readOfficeFrame, saveOfficeFrame } from './view-state.ts'
 
 type Props = {
   people: OfficePerson[]
@@ -10,6 +11,8 @@ type Props = {
   playing: boolean
   floor: number
   hall: boolean
+  roomId: string
+  ready: boolean
   onSelect: (id: string) => void
   onCreate: () => void
   onOverview: () => void
@@ -21,11 +24,18 @@ export function OfficeScene(props: Props) {
   const current = useRef(props)
   current.current = props
   const lastFloor = useRef(props.floor)
+  const checkpointSent = useRef(false)
   const publish = () => {
     const value = current.current
-    frame.current?.contentWindow?.postMessage({ channel: 'phoenix-office-state',
+    const target = frame.current?.contentWindow
+    if (!value.ready || !target) return
+    target.postMessage({ channel: 'phoenix-office-state',
       people: value.people, selected: value.selected, focused: value.focused,
-      playing: value.playing, hall: value.hall, floorChanged: value.floor !== lastFloor.current }, '*')
+      playing: value.playing, hall: value.hall, floorChanged: value.floor !== lastFloor.current,
+      key: JSON.stringify([value.floor, value.roomId, value.hall]),
+      checkpoint: checkpointSent.current ? null : readOfficeFrame(),
+    }, '*')
+    checkpointSent.current = true
     lastFloor.current = value.floor
   }
   useEffect(() => {
@@ -33,7 +43,11 @@ export function OfficeScene(props: Props) {
       if (event.source !== frame.current?.contentWindow || event.origin !== 'null') return
       const data: unknown = event.data
       if (typeof data !== 'object' || data === null || !('channel' in data) || data.channel !== 'phoenix-office' || !('action' in data)) return
-      if (data.action === 'ready') publish()
+      if (data.action === 'ready') {
+        checkpointSent.current = false
+        publish()
+      }
+      else if (data.action === 'checkpoint' && 'frame' in data) saveOfficeFrame(data.frame)
       else if (data.action === 'overview') current.current.onOverview()
       else if (data.action === 'create') current.current.onCreate()
       else if (data.action === 'select' && 'id' in data && typeof data.id === 'string' && current.current.people.some(p => p.id === data.id)) current.current.onSelect(data.id)
@@ -41,6 +55,6 @@ export function OfficeScene(props: Props) {
     window.addEventListener('message', receive)
     return () => window.removeEventListener('message', receive)
   }, [])
-  useEffect(publish, [props.people, props.selected, props.focused, props.playing, props.floor, props.hall])
+  useEffect(publish, [props.people, props.selected, props.focused, props.playing, props.floor, props.hall, props.roomId, props.ready])
   return <iframe ref={frame} title="AI 办公室三维场景" sandbox="allow-scripts" srcDoc={officeDocument} onLoad={publish} style={{ width: '100%', height: '100%', border: 0, display: 'block' }} />
 }

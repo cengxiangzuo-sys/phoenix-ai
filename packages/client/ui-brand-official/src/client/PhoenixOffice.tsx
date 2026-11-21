@@ -5,6 +5,7 @@ import { phoenixTerm } from './NativeBotSurface.tsx'
 import css from './PhoenixOffice.module.css'
 import { OfficeScene } from './office/OfficeScene.tsx'
 import { officePeople, visibleOfficePeople, type OfficeBot as Bot, type OfficeState } from './office/model.ts'
+import { readOfficeView, saveOfficeView } from './office/view-state.ts'
 
 export function PhoenixOfficeIcon({ size }: { size: number }) {
   return <span aria-hidden="true" style={{ fontSize: size * .83, lineHeight: 1 }}>▦</span>
@@ -45,16 +46,17 @@ type PhoenixOfficeProps = PropsLocale<'phoenix.office'> & {
 
 /** Phoenix's visual office. Complete employee and group management stays in one native data surface. */
 export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative, t }: PhoenixOfficeProps) {
+  const [savedView] = useState(readOfficeView)
   const [state, setState] = useState<OfficeState | null>(null)
   const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [selected, setSelected] = useState('')
+  const [selected, setSelected] = useState(savedView.selected)
   const [search, setSearch] = useState('')
   const [job, setJob] = useState('')
-  const [floor, setFloor] = useState(0)
-  const [focused, setFocused] = useState(false)
-  const [playing, setPlaying] = useState(() => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
-  const [roomId, setRoomId] = useState('')
-  const [hall, setHall] = useState(false)
+  const [floor, setFloor] = useState(savedView.floor)
+  const [focused, setFocused] = useState(savedView.focused)
+  const [playing, setPlaying] = useState(savedView.playing)
+  const [roomId, setRoomId] = useState(savedView.roomId)
+  const [hall, setHall] = useState(savedView.hall)
   const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const deleting = useRef(false)
@@ -64,11 +66,21 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative, t }: Phoeni
 
   useLayoutEffect(() => { onEnterOffice?.() }, [onEnterOffice])
 
+  useEffect(() => {
+    saveOfficeView({ selected, floor, focused, playing, roomId, hall })
+  }, [selected, floor, focused, playing, roomId, hall])
+
   const refresh = useCallback(async () => {
     const sequence = ++readSequence.current
     try {
       const next = await botRequest<OfficeState>('state', { locale: navigator.language })
       if (sequence !== readSequence.current) return
+      const ids = next.rooms?.map(room => room.id) ?? []
+      const suggested = previousRoomIds.current === null
+        ? ids.find(id => next.work?.rooms?.[id]?.length)
+        : ids.find(id => !previousRoomIds.current?.includes(id))
+      previousRoomIds.current = ids
+      setRoomId(current => ids.includes(current) ? current : suggested ?? '')
       setState(next)
       setConnectionError(null)
     } catch (cause) {
@@ -82,17 +94,6 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative, t }: Phoeni
     const timer = window.setInterval(() => { void refresh() }, 5000)
     return () => window.clearInterval(timer)
   }, [refresh])
-
-  useEffect(() => {
-    if (!state) return
-    const ids = state.rooms?.map(room => room.id) ?? []
-    const newRoom = previousRoomIds.current === null
-      ? ids.find(id => state.work?.rooms?.[id]?.length)
-      : ids.find(id => !previousRoomIds.current?.includes(id))
-    previousRoomIds.current = ids
-    if (newRoom && !roomId) setRoomId(newRoom)
-    if (roomId && !ids.includes(roomId)) setRoomId('')
-  }, [state, roomId])
 
   const staff = state?.bots ?? []
   const nativeHome = staff.find(bot => state?.mainBotIds.includes(bot.id))?.sessionId ?? staff.find(bot => bot.sessionId)?.sessionId
@@ -211,6 +212,8 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative, t }: Phoeni
           playing={playing}
           floor={visibleFloor}
           hall={hall}
+          roomId={roomId}
+          ready={state !== null}
           onOverview={() => setFocused(false)}
           onSelect={(id) => {
             selectEmployee(id)

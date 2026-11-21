@@ -50,7 +50,7 @@ describe('Office live work animation', () => {
     const frame = new Function('employee', 'render', `
       let elapsed=0,last=0;const playing=true,document={hidden:false},clerks=[],employees=[employee],selected='';
       const cameraFit=()=>{},renderer={render:()=>{render.count++}},scene={},camera={};
-      const animateWork=()=>{},beginBreak=()=>{},requestAnimationFrame=()=>{};
+      const animateWork=()=>{},beginBreak=()=>{},requestAnimationFrame=()=>{},storeFrame=()=>{};
       ${frameSource}; return frame;
     `)(employee, render) as (now: number) => void
     expect(() => frame(1000)).not.toThrow()
@@ -60,6 +60,35 @@ describe('Office live work animation', () => {
     expect(employee.readProp.visible).toBe(false)
     expect(employee.pen.visible).toBe(true)
     expect(render.count).toBe(2)
+  })
+})
+
+describe('Office scene restoration', () => {
+  it('resumes a saved meeting trip and seats employees directly when a saved destination is stale', () => {
+    const start = sceneSource.indexOf('function validRoute(')
+    const source = sceneSource.slice(start, sceneSource.indexOf('function receive(', start))
+    const trips: number[][] = []
+    const positionPerson = new Function('startTrip', `${source}; return positionPerson`)((_person: unknown, dest: number[]) => trips.push(dest))
+    const points: number[][] = []
+    const person = { status: 'working', meeting: true, g: { position: { set: (...at: number[]) => points.push(at) } } }
+    const seat = [1.15, -6.25]
+    const saved = {
+      destination: seat.join(','), at: [2.65, -5.05], nextBreak: 23,
+      trip: { route: [[5, 6], [2.65, -5.05], seat], start: 10, duration: 8 },
+      break: null,
+    }
+    positionPerson(person, seat, 'discussion', true, saved)
+    expect(points).toEqual([[2.65, 0, -5.05]])
+    expect(person).toMatchObject({ destination: seat.join(','), trip: saved.trip })
+    expect(trips).toEqual([])
+
+    const changed = { ...person, g: person.g }
+    const nextSeat = [-1.15, -8.85]
+    positionPerson(changed, nextSeat, 'discussion', true, saved)
+    expect(points.at(-1)).toEqual([-1.15, 0, -8.85])
+    expect(trips).toEqual([])
+    positionPerson(changed, seat, 'discussion', false, null)
+    expect(trips).toEqual([seat])
   })
 })
 
