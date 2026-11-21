@@ -12,6 +12,7 @@ import { installPhoenixSurfaceBranding, isSelectedEmployeeSession, returnToPhoen
 afterEach(() => {
   cleanup()
   document.body.replaceChildren()
+  document.documentElement.removeAttribute('data-phoenix-employee-surface')
   localStorage.clear()
   sessionStorage.clear()
   vi.unstubAllEnvs()
@@ -165,23 +166,32 @@ describe('official browser-brand plugin', () => {
   })
 
   it('uses the employee theme color and follows later color selections', async () => {
+    localStorage.setItem('ds-bot:surface', 'bot')
     document.body.innerHTML = '<span class="bt-mark"><svg><g class="bt-b"><path fill="var(--bt-ink-orange)"/></g></svg></span>'
     const dispose = installPhoenixSurfaceBranding()
     const mark = document.querySelector<HTMLElement>('.bt-mark')
     const path = document.querySelector('path')
     expect(mark?.dataset.phoenixEmployee).toBe('')
     expect(mark?.style.getPropertyValue('--phoenix-employee-color')).toBe('var(--bt-ink-orange)')
+    expect(document.documentElement.hasAttribute('data-phoenix-employee-surface')).toBe(true)
 
     path?.setAttribute('fill', 'var(--bt-ink-violet)')
     await vi.waitFor(() => expect(mark?.style.getPropertyValue('--phoenix-employee-color')).toBe('var(--bt-ink-violet)'))
     dispose()
+    expect(document.documentElement.hasAttribute('data-phoenix-employee-surface')).toBe(false)
   })
 
-  it('cancels a pending employee restore before showing the office', () => {
+  it('cancels and outlasts a pending employee restore when returning to the visual office', () => {
     sessionStorage.setItem('phoenix.native-bot.target.v1', 'employee-1')
     const selectPanel = vi.fn()
-    returnToPhoenixOffice(selectPanel)
+    const pending: Array<() => void> = []
+    returnToPhoenixOffice(selectPanel, task => pending.push(task))
     expect(sessionStorage.getItem('phoenix.native-bot.target.v1')).toBeNull()
+    expect(sessionStorage.getItem('phoenix.native-bot.office.v1')).toBe('1')
     expect(selectPanel).toHaveBeenCalledWith('phoenix-office')
+    expect(pending).toHaveLength(3)
+    for (const task of pending) task()
+    expect(selectPanel).toHaveBeenCalledTimes(4)
+    expect(sessionStorage.getItem('phoenix.native-bot.office.v1')).toBeNull()
   })
 })

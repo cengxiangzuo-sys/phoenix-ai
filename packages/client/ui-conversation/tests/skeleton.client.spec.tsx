@@ -85,6 +85,7 @@ function fireResize(el: Element): void {
 
 afterEach(() => {
   cleanup()
+  document.documentElement.removeAttribute('data-phoenix-employee-surface')
   vi.unstubAllEnvs()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
@@ -431,6 +432,15 @@ describe('Hero chrome', () => {
     fireEvent.click(view.getByRole('button', { name: /AI 办公室/ }))
     expect(openOffice).toHaveBeenCalledOnce()
     expect(renderSlot).not.toHaveBeenCalled()
+  })
+  it('does not repeat the Phoenix welcome card inside an employee chat', () => {
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    document.documentElement.setAttribute('data-phoenix-employee-surface', '')
+    const renderSlot = vi.fn<(key: string, owner: object) => ReactNode>(() => null)
+    const view = render(<HeroShell t={makeTranslate(zh, commonZh)} renderSlot={renderSlot as never} />)
+    expect(view.queryByText('Phoenix AI')).toBeNull()
+    expect(view.queryByRole('button', { name: /AI 办公室/ })).toBeNull()
+    document.documentElement.removeAttribute('data-phoenix-employee-surface')
   })
   it('renders the English preview badge through the hero locale seat', () => {
     const renderSlot = vi.fn<(key: string, owner: object, opts?: { fallback?: ReactNode }) => ReactNode>(() => null)

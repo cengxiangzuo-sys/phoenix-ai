@@ -135,6 +135,11 @@ function HeroFish({ hovering }: { hovering: boolean }) {
 export function HeroShell({ t, renderSlot, openOffice, children }: HeroShellProps) {
   const [hovering, setHovering] = useState(false)
   if (process.env.DSH_CLIENT_BRAND === 'phoenix') {
+    // Employee Sessions reuse the native Conversation shell. A new employee
+    // may still be summary-blank while its model is being selected, but that
+    // is an employee chat—not Phoenix's product home—so never repeat the large
+    // welcome artwork above that conversation.
+    if (document.documentElement.hasAttribute('data-phoenix-employee-surface')) return <>{children}</>
     return (
       <div className={css.phoenixRoot}>
         <div className={css.phoenixCard}>

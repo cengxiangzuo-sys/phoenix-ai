@@ -130,6 +130,7 @@ function brandNode(root: Node): void {
 
 /** Keep the reused team surface visibly inside the Phoenix product identity. */
 export function installPhoenixSurfaceBranding(): () => void {
+  document.documentElement.toggleAttribute('data-phoenix-employee-surface', isNativeBotSurface())
   brandNode(document.documentElement)
   document.title = phoenixTerm(document.title)
   const observer = new MutationObserver((records) => {
@@ -146,7 +147,10 @@ export function installPhoenixSurfaceBranding(): () => void {
     attributes: true,
     attributeFilter: ['aria-label', 'title', 'placeholder', 'alt', 'fill', 'stop-color'],
   })
-  return () => observer.disconnect()
+  return () => {
+    observer.disconnect()
+    document.documentElement.removeAttribute('data-phoenix-employee-surface')
+  }
 }
 
 /** Enter the complete native team surface through the Phoenix office. */
@@ -160,11 +164,25 @@ export function openNativeBotSurface(sessionId?: string): void {
   }
 }
 
-/** Select the visual office and cancel a pending employee-chat restoration. */
-export function returnToPhoenixOffice(selectPanel: (panel: MainPanelId) => void): void {
+/** Select the visual office and outlast the native team's pending chat restoration. */
+export function returnToPhoenixOffice(
+  selectPanel: (panel: MainPanelId) => void,
+  schedule: (task: () => void, delay: number) => unknown = (task, delay) => window.setTimeout(task, delay),
+): void {
   sessionStorage.removeItem(TARGET_KEY)
-  sessionStorage.removeItem(OFFICE_KEY)
-  selectPanel('phoenix-office' as MainPanelId)
+  // A requested employee can still be waiting in the native team's delayed
+  // navigation queue. Keep this transition in the current mounted workspace and
+  // reassert it briefly; an entire reload starts that native restore cycle again.
+  sessionStorage.setItem(OFFICE_KEY, '1')
+  const office = 'phoenix-office' as MainPanelId
+  selectPanel(office)
+  for (const [delay, done] of [[300, false], [900, false], [1_800, true]] as const) {
+    schedule(() => {
+      if (sessionStorage.getItem(OFFICE_KEY) !== '1') return
+      selectPanel(office)
+      if (done) sessionStorage.removeItem(OFFICE_KEY)
+    }, delay)
+  }
 }
 
 /** Native team surface footer entry back to the Phoenix office. */
