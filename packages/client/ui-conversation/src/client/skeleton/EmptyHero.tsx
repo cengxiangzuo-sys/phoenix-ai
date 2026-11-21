@@ -139,7 +139,8 @@ export function HeroShell({ t, renderSlot, openOffice, children }: HeroShellProp
     // may still be summary-blank while its model is being selected, but that
     // is an employee chat—not Phoenix's product home—so never repeat the large
     // welcome artwork above that conversation.
-    if (document.documentElement.hasAttribute('data-phoenix-employee-surface')) return <>{children}</>
+    if (document.documentElement.hasAttribute('data-phoenix-employee-surface')
+      && localStorage.getItem('ds-bot:surface') === 'bot') return <>{children}</>
     return (
       <div className={css.phoenixRoot}>
         <div className={css.phoenixCard}>

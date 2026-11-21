@@ -48,6 +48,7 @@ export function enterNativeBotSurface(): void {
 export function leaveNativeBotSurface(): void {
   if (!isNativeBotSurface()) return
   try {
+    document.documentElement.removeAttribute('data-phoenix-employee-surface')
     sessionStorage.removeItem(OFFICE_KEY)
     sessionStorage.removeItem(TARGET_KEY)
     sessionStorage.setItem(HOME_KEY, '1')

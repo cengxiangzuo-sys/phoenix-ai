@@ -435,12 +435,23 @@ describe('Hero chrome', () => {
   })
   it('does not repeat the Phoenix welcome card inside an employee chat', () => {
     vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    localStorage.setItem('ds-bot:surface', 'bot')
     document.documentElement.setAttribute('data-phoenix-employee-surface', '')
     const renderSlot = vi.fn<(key: string, owner: object) => ReactNode>(() => null)
     const view = render(<HeroShell t={makeTranslate(zh, commonZh)} renderSlot={renderSlot as never} />)
     expect(view.queryByText('Phoenix AI')).toBeNull()
     expect(view.queryByRole('button', { name: /AI 办公室/ })).toBeNull()
     document.documentElement.removeAttribute('data-phoenix-employee-surface')
+  })
+  it('keeps the Phoenix welcome card on the ordinary home after leaving the office', () => {
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    localStorage.setItem('ds-bot:surface', 'agent')
+    // A surface change can precede the old employee tree's cleanup by one frame.
+    document.documentElement.setAttribute('data-phoenix-employee-surface', '')
+    const renderSlot = vi.fn<(key: string, owner: object) => ReactNode>(() => null)
+    const view = render(<HeroShell t={makeTranslate(zh, commonZh)} renderSlot={renderSlot as never} />)
+    expect(view.getByText('Phoenix AI')).toBeTruthy()
+    expect(view.getByRole('button', { name: /AI 办公室/ })).toBeTruthy()
   })
   it('renders the English preview badge through the hero locale seat', () => {
     const renderSlot = vi.fn<(key: string, owner: object, opts?: { fallback?: ReactNode }) => ReactNode>(() => null)
