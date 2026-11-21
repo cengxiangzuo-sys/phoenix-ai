@@ -12,6 +12,7 @@ import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './suppor
  * composer textarea, which carries an unrelated `data-phase` of its own.
  */
 const ROOT_PHASE = 'div[data-phase]'
+const PHOENIX = process.env.DSH_CLIENT_BRAND === 'phoenix'
 
 /** Every distinct conversation-root phase observed during one page load. */
 function recordedPhases(page: Page): Promise<string[]> {
@@ -41,15 +42,20 @@ describe('web e2e: startup auto-selection', () => {
   it('keeps the resident Hero and composer nodes when the first Workspace session appears', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-first-workspace-stable-tree'))
     await page.locator(`${ROOT_PHASE}[data-phase="hero"]`).waitFor({ timeout: 15_000 })
-    const headline = page.getByText('Into the Unknown', { exact: true })
-    // The headline text sits in its own span inside the title group; the fish
-    // hitbox precedes the group, not the text span.
-    const fishHitbox = headline.locator('xpath=../preceding-sibling::span[1]')
-    const fish = fishHitbox.locator('svg')
-    expect(await fish.evaluate(node => getComputedStyle(node).color))
-      .toBe(await headline.evaluate(node => getComputedStyle(node).color))
-    await fishHitbox.hover()
-    expect(await fish.evaluate(node => getComputedStyle(node).animationName)).not.toBe('none')
+    if (PHOENIX) {
+      const hero = page.locator(ROOT_PHASE)
+      await hero.getByRole('heading', { name: /Phoenix AI/u }).waitFor()
+      expect(await hero.getByRole('button', { name: 'AI Office' }).isVisible()).toBe(true)
+    } else {
+      const headline = page.getByText('Into the Unknown', { exact: true })
+      // The fish hitbox precedes the title group containing the text span.
+      const fishHitbox = headline.locator('xpath=../preceding-sibling::span[1]')
+      const fish = fishHitbox.locator('svg')
+      expect(await fish.evaluate(node => getComputedStyle(node).color))
+        .toBe(await headline.evaluate(node => getComputedStyle(node).color))
+      await fishHitbox.hover()
+      expect(await fish.evaluate(node => getComputedStyle(node).animationName)).not.toBe('none')
+    }
     await page.evaluate(() => {
       const refs = {
         root: document.querySelector('div[data-phase="hero"]'),
@@ -154,7 +160,8 @@ describe('web e2e: startup auto-selection', () => {
       // seat with `visibility:hidden`, which Playwright reports as not visible).
       await page.waitForSelector(ROOT_PHASE, { timeout: 15_000 })
       expect(await page.locator(ROOT_PHASE).first().getAttribute('data-phase')).toBe('hero')
-      expect(await page.getByText('Into the Unknown').isVisible()).toBe(true)
+      const heading = PHOENIX ? page.getByRole('heading', { name: /Phoenix AI/u }) : page.getByText('Into the Unknown')
+      expect(await heading.isVisible()).toBe(true)
       expect(await page.locator('[data-composer-input]').first().isVisible()).toBe(true)
 
       releaseOpening()
