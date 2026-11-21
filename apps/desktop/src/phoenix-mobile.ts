@@ -1,7 +1,7 @@
 /** Phoenix's Android release share, including the public access code shown to recipients. */
 export const PHOENIX_ANDROID_SHARE = {
-  url: 'https://pan.baidu.com/s/1szTDq2n9w5o2MEiP18mTPA',
-  accessCode: 'p5rb',
+  url: 'https://pan.baidu.com/s/10J3kWov-euHkceNIwJ2Amw',
+  accessCode: 'ppwd',
 } as const
 
 /**
