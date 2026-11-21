@@ -94,6 +94,8 @@ The Phoenix profile presents the existing employee roster in an offline 3D offic
 
 Employee creation, editing, model binding, credentials, folders, conversations, groups, members, room settings and persisted history remain owned by the installed team service. Phoenix supplies one branded office entry, opens that complete native surface for management and chat, and provides a visible return to the office. It does not maintain duplicate employee forms, room chat, room settings or a second data store. User-visible shell, team-surface and navigation product names are translated to Phoenix wording; compatibility package identifiers and license metadata remain unchanged internally.
 
+The sidebar plus opens the native employee and group-chat creation menu. The office toolbar and the 3D human resources area open the native employee form directly. Dissolving a sidebar section moves its entries out of the section and preserves conversations. Phoenix isolates the lifetime of the native employee context menu so a roster update can remove its target without taking down other menus and forms.
+
 Phoenix also prevents two separate assignments to the same employee conversation or group from being accepted back-to-back by one orchestrator. The first successful assignment stays pending until the employee reply or another inbox message starts the next step. This is an admission barrier, not a durable workflow engine: restart recovery still requires an authoritative persisted checkpoint, final summaries still need a source-of-truth event ledger, and a whole-task model-call budget is not enforced here.
 
 <a id="dev-note"></a>

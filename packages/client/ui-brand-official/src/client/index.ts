@@ -14,7 +14,7 @@ import { installPhoenixTheme } from './PhoenixTheme.ts'
 import { PhoenixOffice, PhoenixOfficeIcon } from './PhoenixOffice.tsx'
 import { OfficeReturn } from './OfficeReturn.tsx'
 import { en as officeEn, zh as officeZh } from './office/locales.ts'
-import { enterNativeBotSurface, installNativeBotSurface, leaveNativeBotSurface, openNativeBotSession, returnToPhoenixOffice } from './NativeBotSurface.tsx'
+import { enterNativeBotSurface, installNativeBotSurface, leaveNativeBotSurface, openNativeBotCreation, openNativeBotSession, returnToPhoenixOffice } from './NativeBotSurface.tsx'
 
 /** Required service: the UI slot registry. */
 export const inject = ['slots']
@@ -44,6 +44,7 @@ export function apply(ctx: ClientContext): void {
         inject: () => ({
           onHome: () => leaveNativeBotSurface(scope),
           onEnterOffice: enterOffice,
+          onCreateEmployee: () => openNativeBotCreation(scope),
           onOpenNative: (sessionId?: string) => {
             if (sessionId !== undefined) openNativeBotSession(scope, sessionId)
           },

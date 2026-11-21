@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
 import { Context } from '@deepseek-ai/cordis'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render } from '@testing-library/react'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { useMemo, useRef } from 'react'
+import { apply as applyRenderer, SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import { apply, inject } from '../src/client/index.ts'
 import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
 import { PHOENIX_THEME_TOKENS } from '../src/client/PhoenixTheme.ts'
 import { OfficeReturn } from '../src/client/OfficeReturn.tsx'
-import { enterNativeBotSurface, guardNativeOfficeLanding, installPhoenixSurfaceBranding, isSelectedEmployeeSession, leaveNativeBotSurface, openNativeBotSession, returnToPhoenixOffice } from '../src/client/NativeBotSurface.tsx'
+import { enterNativeBotSurface, guardNativeOfficeLanding, installPhoenixSurfaceBranding, isSelectedEmployeeSession, leaveNativeBotSurface, openNativeBotCreation, openNativeBotSession, returnToPhoenixOffice } from '../src/client/NativeBotSurface.tsx'
+import { installNativeOfficeOverlays } from '../src/client/office/NativeOfficeOverlays.tsx'
 
 afterEach(() => {
   cleanup()
@@ -28,6 +31,21 @@ const HOLES = [
 ] as const
 
 const HERO_HOLE = 'conversation.hero.brand.mark'
+
+function source<T>(snapshot: T) {
+  const listeners = new Set<() => void>()
+  return {
+    getSnapshot: () => snapshot,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+    set: (next: T) => {
+      snapshot = next
+      for (const listener of listeners) listener()
+    },
+  }
+}
 
 async function bench(declare = true) {
   const ctx = new Context()
@@ -214,6 +232,7 @@ describe('official browser-brand plugin', () => {
     const actions = {
       setSurface: (next: Surface['mode']) => { surface = { ...surface, mode: next }; calls.push(next) },
       openSession: (id: string) => calls.push(id),
+      openNewChat: (mode: 'create') => calls.push(mode),
       landOn: async () => {},
     }
     const slots = { entries: () => [{ options: { id: 'bot-return' }, component: () => null, inject: () => ({ actions, hooks }) }] }
@@ -226,11 +245,12 @@ describe('official browser-brand plugin', () => {
 
     enterNativeBotSurface(navigation)
     expect(surface).toEqual({ mode: 'bot', plain: true })
+    openNativeBotCreation(navigation)
     openNativeBotSession(navigation, 'employee-1')
     expect(document.documentElement.hasAttribute('data-phoenix-employee-surface')).toBe(true)
     leaveNativeBotSurface(navigation)
     expect(document.documentElement.hasAttribute('data-phoenix-employee-surface')).toBe(false)
-    expect(calls).toEqual(['bot', 'employee-1', 'agent', 'clear', 'home', 'start'])
+    expect(calls).toEqual(['bot', 'create', 'employee-1', 'agent', 'clear', 'home', 'start'])
   })
 
   it('suppresses native sidebar auto-navigation while the office is visible and restores it on teardown', async () => {
@@ -245,5 +265,53 @@ describe('official browser-brand plugin', () => {
     expect(landOn).toHaveBeenCalledOnce()
     dispose()
     expect(actions.landOn).toBe(landOn)
+  })
+
+  it('keeps native creation and section menus mounted after an employee disappears', async () => {
+    const ctx = new Context()
+    const renderer = ctx.plugin({ apply: applyRenderer })
+    await renderer.await()
+    onTestFinished(() => { renderer.dispose() })
+    const slots = ctx.slots
+    const emptySelection = source({ key: undefined, hooks: {}, keyedHooks: {}, props: {} })
+    slots.installScope('session', { current: emptySelection, bindingSource: () => emptySelection })
+    slots.register({ name: 'root', children: { 'shell.overlay': { kind: 'list', scope: 'root' } } },
+      ({ renderSlot }) => <>{renderSlot('shell.overlay', {})}</>)
+    onTestFinished(installNativeOfficeOverlays(slots))
+
+    const ui = source<{ menu: { kind: string; id: string } | null; create?: boolean }>({ menu: { kind: 'bot', id: 'employee' } })
+    const roster = source<{ byId: Record<string, object> }>({ byId: { employee: {} } })
+    const work = source({ waiting: false })
+    const injectOverlay = () => ({ hooks: { ui, roster, work } })
+    function EmployeeMenu({ useWork, employee }: { useWork: InjectFace<ReturnType<typeof injectOverlay>>['useWork']; employee: boolean }) {
+      // Reproduce the native 0.3.6 conditional hook in the menu that lingers after closing.
+      const waiting = employee ? useWork(state => state.waiting) : false
+      const label = useMemo(() => waiting ? 'Waiting' : 'Employee menu', [waiting])
+      return employee && <span>{label}</span>
+    }
+    function NativeOverlay({ useUi, useRoster, useWork }: InjectFace<ReturnType<typeof injectOverlay>>) {
+      const state = useUi(value => value)
+      const employee = useRoster(value => Boolean(value.byId.employee))
+      const lingeringMenu = useRef(state.menu)
+      const menu = state.menu ?? lingeringMenu.current
+      return <>
+        {menu?.kind === 'bot' && <EmployeeMenu employee={employee} useWork={useWork} />}
+        {menu?.kind === 'section' && <button>解散分组</button>}
+        {state.create && <h2>新建员工</h2>}
+      </>
+    }
+
+    const unregister = slots.register({ name: 'shell.overlay', id: 'bot', inject: injectOverlay }, NativeOverlay)
+    await act(async () => {})
+    const view = render(<>{slots.renderSlot('root', {})}</>)
+    expect(view.getByText('Employee menu')).toBeTruthy()
+    act(() => { roster.set({ byId: {} }) })
+    expect(view.queryByText('Employee menu')).toBeNull()
+    act(() => { ui.set({ menu: null, create: true }) })
+    expect(view.getByRole('heading', { name: '新建员工' })).toBeTruthy()
+    act(() => { ui.set({ menu: { kind: 'section', id: 'new-section' } }) })
+    expect(view.getByRole('button', { name: '解散分组' })).toBeTruthy()
+    await act(async () => { unregister() })
+    expect(slots.entries('shell.overlay')).toHaveLength(0)
   })
 })

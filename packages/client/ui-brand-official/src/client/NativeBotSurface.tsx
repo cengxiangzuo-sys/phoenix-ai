@@ -4,6 +4,7 @@ import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { SidebarFooterActionOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
+import { installNativeOfficeOverlays } from './office/NativeOfficeOverlays.tsx'
 import flame from './assets/phoenix-flame.svg'
 import css from './NativeBotSurface.module.css'
 
@@ -37,6 +38,7 @@ type OfficeNavigation = {
 type NativeOfficeActions = {
   setSurface(mode: 'agent' | 'bot'): void
   openSession(sessionId: string): void
+  openNewChat(mode: 'create'): void
   landOn(id: string, previous?: { botId: string; sessionId: string }): Promise<void>
 }
 type NativeOfficeMode = {
@@ -48,6 +50,7 @@ function hasNativeOfficeActions(value: unknown): value is NativeOfficeActions {
   return typeof value === 'object' && value !== null
     && 'setSurface' in value && typeof value.setSurface === 'function'
     && 'openSession' in value && typeof value.openSession === 'function'
+    && 'openNewChat' in value && typeof value.openNewChat === 'function'
     && 'landOn' in value && typeof value.landOn === 'function'
 }
 
@@ -107,6 +110,14 @@ export function leaveNativeBotSurface({ slots, uiWorkspace, layout }: OfficeNavi
 export function openNativeBotSession(navigation: OfficeNavigation, sessionId: string): void {
   enterNativeBotSurface(navigation)
   nativeOfficeActions(navigation.slots)?.openSession(sessionId)
+}
+
+/** Open the native employee form over the visual office.
+ * @param navigation - Slot access for the employee surface.
+ */
+export function openNativeBotCreation(navigation: Pick<OfficeNavigation, 'slots'>): void {
+  enterNativeBotSurface(navigation)
+  nativeOfficeActions(navigation.slots)?.openNewChat('create')
 }
 
 const PHOENIX_TERMS: ReadonlyArray<readonly [RegExp, string]> = [
@@ -222,6 +233,7 @@ export function NativeOfficeReturn({ wide, onClick }: SidebarFooterActionOwnerPr
 /** Brand the employee view and protect ordinary navigation after a cold start. */
 export function installNativeBotSurface(ctx: ClientContext): void {
   ctx.effect(installPhoenixSurfaceBranding, 'phoenix-office: brand native team surface')
+  ctx.effect(() => installNativeOfficeOverlays(ctx.slots), 'phoenix-office: keep native menus available')
 
   ctx.inject(['layout', 'uiWorkspace'], (scope) => {
     scope.slots.inject('sidebar.footer.action', () => scope.slots.register({

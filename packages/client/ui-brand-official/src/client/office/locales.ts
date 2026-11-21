@@ -7,6 +7,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 export const zh = {
+  'employee.create': '新建员工',
   'employee.delete': '删除员工',
   'employee.deleteTitle': '删除「{name}」？',
   'employee.deleteDescription': '员工将从办公室和群聊中移除，现有对话将归档。',
@@ -19,6 +20,7 @@ export const zh = {
 }
 
 export const en: LocaleDictOf<'phoenix.office'> = {
+  'employee.create': 'Create employee',
   'employee.delete': 'Delete employee',
   'employee.deleteTitle': 'Delete “{name}”?',
   'employee.deleteDescription': 'The employee will be removed from the office and group chats. Existing conversations will be archived.',

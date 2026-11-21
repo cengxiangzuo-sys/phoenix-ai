@@ -41,11 +41,12 @@ function employeeColor(id: string): string {
 type PhoenixOfficeProps = PropsLocale<'phoenix.office'> & {
   onHome: () => void
   onEnterOffice?: () => void
+  onCreateEmployee: () => void
   onOpenNative: (sessionId?: string) => void
 }
 
 /** Phoenix's visual office. Complete employee and group management stays in one native data surface. */
-export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative, t }: PhoenixOfficeProps) {
+export function PhoenixOffice({ onHome, onEnterOffice, onCreateEmployee, onOpenNative, t }: PhoenixOfficeProps) {
   const [savedView] = useState(readOfficeView)
   const [state, setState] = useState<OfficeState | null>(null)
   const [connectionError, setConnectionError] = useState<string | null>(null)
@@ -153,7 +154,7 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative, t }: Phoeni
       </div>
       <div className={css.headerActions}>
         <span className={css.live}><i />{connectionError ? '状态未知' : `${working} 位工作中`} · {staff.length} 位员工</span>
-        <button type="button" className={css.primary} onClick={() => onOpenNative(nativeHome)} disabled={!state}>员工列表与创建 ↗</button>
+        <button type="button" className={css.primary} onClick={onCreateEmployee} disabled={!state}>{t('employee.create')}</button>
       </div>
     </header>
 
@@ -218,7 +219,7 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative, t }: Phoeni
           onSelect={(id) => {
             selectEmployee(id)
           }}
-          onCreate={() => onOpenNative(nativeHome)}
+          onCreate={onCreateEmployee}
         />
       </section>
       <p className={css.hint}>姓名与岗位来自 Phoenix 员工资料。动作和提示依据员工实时任务类型显示；员工、群聊、模型、文件夹和协作设置使用同一份原生数据。</p>

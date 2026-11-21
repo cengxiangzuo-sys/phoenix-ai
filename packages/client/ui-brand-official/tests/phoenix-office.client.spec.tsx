@@ -22,7 +22,7 @@ function installRoster(roster: Record<string, unknown>, calls: string[]): void {
 }
 
 describe('Phoenix office native team integration', () => {
-  it('opens employee management in the main employee native session without duplicating writes', async () => {
+  it('opens the same native employee form from the toolbar and human resources without writing to the roster', async () => {
     const roster = {
       bots: [
         { id: 'main', sessionId: 'main-session', name: '小羽', role: '总指挥' },
@@ -33,12 +33,17 @@ describe('Phoenix office native team integration', () => {
     const calls: string[] = []
     installRoster(roster, calls)
     const onOpenNative = vi.fn()
-    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={onOpenNative} />)
+    const onCreateEmployee = vi.fn()
+    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={onOpenNative} onCreateEmployee={onCreateEmployee} />)
 
     await waitFor(() => expect(view.getAllByText('小羽 · 总指挥').length).toBeGreaterThan(0))
     expect(view.getByRole('heading', { name: 'AI 办公室' }).closest('header')?.hasAttribute('data-window-drag')).toBe(true)
-    fireEvent.click(view.getByRole('button', { name: '员工列表与创建 ↗' }))
-    expect(onOpenNative).toHaveBeenCalledWith('main-session')
+    fireEvent.click(view.getByRole('button', { name: '新建员工' }))
+    expect(onCreateEmployee).toHaveBeenCalledOnce()
+    const frame = view.getByTitle('AI 办公室三维场景') as HTMLIFrameElement
+    fireEvent(window, new MessageEvent('message', { source: frame.contentWindow, origin: 'null', data: { channel: 'phoenix-office', action: 'create' } }))
+    expect(onCreateEmployee).toHaveBeenCalledTimes(2)
+    expect(onOpenNative).not.toHaveBeenCalled()
     expect(calls).toEqual(['state'])
   })
 
@@ -50,7 +55,7 @@ describe('Phoenix office native team integration', () => {
     const calls: string[] = []
     installRoster(roster, calls)
     const onOpenNative = vi.fn()
-    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={onOpenNative} />)
+    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={onOpenNative} onCreateEmployee={vi.fn()} />)
 
     await waitFor(() => expect(view.getByRole('option', { name: '员工5 · 研究助理' })).toBeTruthy())
     fireEvent.change(view.getByLabelText('搜索姓名或岗位'), { target: { value: '员工5' } })
@@ -79,7 +84,7 @@ describe('Phoenix office native team integration', () => {
     const calls: string[] = []
     installRoster(roster, calls)
     const onOpenNative = vi.fn()
-    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={onOpenNative} />)
+    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={onOpenNative} onCreateEmployee={vi.fn()} />)
 
     await waitFor(() => expect(view.getByRole('option', { name: '策划会' })).toBeTruthy())
     fireEvent.change(view.getByLabelText('查看群聊'), { target: { value: 'room-a' } })
@@ -99,7 +104,7 @@ describe('Phoenix office native team integration', () => {
       mainBotIds: [], models: [], defaultModel: null,
       rooms: [{ id: 'meeting', name: '演示会议', members: ['worker'], sessionId: 'group-session' }],
     }, [])
-    const office = () => <PhoenixOffice t={t} onHome={() => {}} onOpenNative={vi.fn()} />
+    const office = () => <PhoenixOffice t={t} onHome={() => {}} onOpenNative={vi.fn()} onCreateEmployee={vi.fn()} />
     const first = render(office())
     await first.findByRole('option', { name: '演示会议' })
     fireEvent.change(first.getByLabelText('查看群聊'), { target: { value: 'meeting' } })
@@ -146,7 +151,7 @@ describe('Phoenix office native team integration', () => {
       }
       return { ok: true, json: async () => ({ ok: true, value: writes.length < 2 ? roster : updated }) }
     }))
-    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={vi.fn()} />)
+    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={vi.fn()} onCreateEmployee={vi.fn()} />)
     await view.findByRole('option', { name: '已作废-测试 · 测试' })
     fireEvent.change(view.getByLabelText('员工视角'), { target: { value: chief.id } })
     expect(view.queryByRole('button', { name: '删除员工' })).toBeNull()
