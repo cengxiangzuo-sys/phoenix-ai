@@ -315,3 +315,19 @@ Phoenix 宿主现在为原生 `message_bot` 和 `post_to_group` 增加每 Agent�
 桌面端“连接手机 → 下载 Phoenix 安卓版”的默认分享更新为 `Phoenix-Android-1.1.0-11212209-office.apk`。打开下载页时照常复制对应提取码。下载入口、复制提取码和扫码配对沿用现有流程。
 
 本机同名 APK 的清单显示包名 `ai.phoenix.android`，版本 `1.1.0`、内部版本号 `111212128`，支持 `arm64-v8a`，通过 ZIP 完整性与 Android v2 签名检查。SHA-256 为 `9af4bf2082e612250ee7b1e71cfb04a80a9685e6c2ab99d07f69979a1495e6bd`。已核对源码和生成的桌面主程序包含新版链接与提取码。构建 8/8、聚合检查 2/2、侧栏测试 115/115 通过。另跑的桌面启动套件在既有 Electron 测试模拟缺少 `app.getName()` 时失败。浏览器自动操作在分享页受限，因此未实测网盘提取、下载或手机安装。
+
+## 发布候选验收（2026-11-22）
+
+全新安装原本仅预置手机连接插件。修复后，Phoenix 安装包携带预置办公室和手机连接所需的固定插件版本。空配置真实试跑确认两者可离线安装、启用，重启后仍保留。真实 Host 启动后成功返回办公室名册。用户自行安装的版本和卸载选择继续由原插件管理机制持有。
+
+| 检查 | 证据 |
+| --- | --- |
+| macOS 实际开发版窗口 | 冷启动到欢迎页，首页进入三维办公室，侧栏加号打开员工与群聊的新建菜单，人事部直接打开原有员工表单；从三维员工打开已有对话并返回、解散本轮创建的空分组、返回主页和打开手机配对窗口。 |
+| 实际 Web UI 与 Host | 从空配置打开实际办公室设置和“关于 Phoenix AI”，读取 Star 的链接，确认指向 `cengxiangzuo-sys/phoenix-ai`。回归测试覆盖插件更新该属性后链接保持正确。 |
+| 自动化 | 24 个定向测试文件，477 项通过、1 项跳过。修复桌面启动测试的 Electron `getName()` 模拟。Chrome 12 轮回复本地回放、两项 Phoenix 冷启动界面校验，以及 Chromium 和 WebKit 中四项窄窗口上下文详情检查均通过。文档 21 项通过。 |
+| Windows x64 | 独立候选分支的真实 Windows 构建、包内运行时检查、运行安装器并核对已安装的执行文件、应用归档和插件预置资源均通过。安装器为未签名候选包。见 [Windows CI](https://github.com/cengxiangzuo-sys/phoenix-ai/actions/runs/44930024915)。 |
+| macOS Apple Silicon | DMG 校验和只读挂载通过，应用 Bundle ID 为 `ai.phoenix.desktop`，可执行文件为 arm64，应用签名完整性校验通过。包内后台启动、离线插件操作与 DOCX、XLSX、PPTX 转 PDF 通过。候选包采用本地签名，尚未完成 Apple 公证。 |
+
+本地交付文件的 SHA-256 分别为 macOS DMG `7d22c126b13af5fe6dd37a07dc3658f7626cb347aee38a3d5106d29d0aa60513`、Windows EXE `7a773bac5592697b4b137541274bd1ba07c45689ede09e6fef017dfbbd8069a5`。Windows EXE 已与 GitHub runner 的原始校验记录对比一致；该轮没有验收 Windows 交互界面。两份候选安装包均在桌宠开发前冻结。
+
+桌面聊天与多轮回放使用本地记录，未调用付费模型。本轮没有进行手机端实机配对，也未把既有 GitHub 发布更改为此候选。
