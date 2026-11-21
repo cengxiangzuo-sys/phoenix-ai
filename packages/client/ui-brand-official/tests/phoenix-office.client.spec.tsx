@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react'
+import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { PhoenixOffice } from '../src/client/PhoenixOffice.tsx'
 import { phoenixTerm } from '../src/client/NativeBotSurface.tsx'
+import { zh } from '../src/client/office/locales.ts'
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+const t: TranslateNS<'phoenix.office'> = (key, params) => {
+  const template = Object.hasOwn(zh, key) ? zh[key as keyof typeof zh] : key
+  return template.replace(/\{(\w+)\}/g, (_, name: string) => String(params?.[name] ?? ''))
+}
 
 function installRoster(roster: Record<string, unknown>, calls: string[]): void {
   vi.stubGlobal('fetch', vi.fn(async (_url: string, options: RequestInit) => {
@@ -26,7 +33,7 @@ describe('Phoenix office native team integration', () => {
     const calls: string[] = []
     installRoster(roster, calls)
     const onOpenNative = vi.fn()
-    const view = render(<PhoenixOffice onHome={() => {}} onOpenNative={onOpenNative} />)
+    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={onOpenNative} />)
 
     await waitFor(() => expect(view.getAllByText('小羽 · 总指挥').length).toBeGreaterThan(0))
     expect(view.getByRole('heading', { name: 'AI 办公室' }).closest('header')?.hasAttribute('data-window-drag')).toBe(true)
@@ -43,7 +50,7 @@ describe('Phoenix office native team integration', () => {
     const calls: string[] = []
     installRoster(roster, calls)
     const onOpenNative = vi.fn()
-    const view = render(<PhoenixOffice onHome={() => {}} onOpenNative={onOpenNative} />)
+    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={onOpenNative} />)
 
     await waitFor(() => expect(view.getByRole('option', { name: '员工5 · 研究助理' })).toBeTruthy())
     fireEvent.change(view.getByLabelText('搜索姓名或岗位'), { target: { value: '员工5' } })
@@ -72,7 +79,7 @@ describe('Phoenix office native team integration', () => {
     const calls: string[] = []
     installRoster(roster, calls)
     const onOpenNative = vi.fn()
-    const view = render(<PhoenixOffice onHome={() => {}} onOpenNative={onOpenNative} />)
+    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={onOpenNative} />)
 
     await waitFor(() => expect(view.getByRole('option', { name: '策划会' })).toBeTruthy())
     fireEvent.change(view.getByLabelText('查看群聊'), { target: { value: 'room-a' } })
@@ -93,5 +100,44 @@ describe('Phoenix office native team integration', () => {
     expect(phoenixTerm('Bot 列表 · 主 Bot · 新建 Bot')).toBe('员工列表 · 总指挥 · 新建员工')
     expect(phoenixTerm('DS Bot 0.3.8 可以更新')).toBe('协作引擎 0.3.8 可以更新')
     expect(phoenixTerm('协调各 Bot 的工作，处理新建 Bot 的事情')).toBe('协调各员工的工作，处理新建员工的事情')
+  })
+
+  it('protects the chief and removes a selected employee only after confirmed native deletion', async () => {
+    const chief = { id: 'chief', sessionId: 'chief-session', name: '小羽', role: '总指挥' }
+    const retired = { id: 'retired', sessionId: 'retired-session', name: '已作废-测试', role: '测试' }
+    const roster = { bots: [chief, retired], mainBotIds: [chief.id], models: [], defaultModel: null }
+    const updated = { ...roster, bots: [chief] }
+    const writes: unknown[] = []
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, options: RequestInit) => {
+      const request = JSON.parse(String(options.body)) as { endpoint: string; payload: unknown }
+      if (request.endpoint === 'delete-bot') {
+        writes.push(request.payload)
+        if (writes.length === 1) return { ok: true, json: async () => ({ ok: false, error: { message: '团队暂时只读' } }) }
+        return { ok: true, json: async () => ({ ok: true, value: updated }) }
+      }
+      return { ok: true, json: async () => ({ ok: true, value: writes.length < 2 ? roster : updated }) }
+    }))
+    const view = render(<PhoenixOffice t={t} onHome={() => {}} onOpenNative={vi.fn()} />)
+    await view.findByRole('option', { name: '已作废-测试 · 测试' })
+    fireEvent.change(view.getByLabelText('员工视角'), { target: { value: chief.id } })
+    expect(view.queryByRole('button', { name: '删除员工' })).toBeNull()
+    expect(view.getByText('总指挥不能直接删除。请先在员工管理中将总指挥交给其他员工。')).toBeTruthy()
+
+    fireEvent.change(view.getByLabelText('员工视角'), { target: { value: retired.id } })
+    fireEvent.click(view.getByRole('button', { name: '删除员工' }))
+    const dialog = view.getByRole('dialog', { name: '删除「已作废-测试」？' })
+    fireEvent.click(within(dialog).getByRole('button', { name: '取消' }))
+    expect(writes).toEqual([])
+
+    fireEvent.click(view.getByRole('button', { name: '删除员工' }))
+    const confirmation = within(view.getByRole('dialog', { name: '删除「已作废-测试」？' }))
+    fireEvent.click(confirmation.getByRole('button', { name: '删除员工' }))
+    expect((await confirmation.findByRole('alert')).textContent).toBe('删除失败：团队暂时只读')
+    expect(view.getByRole('option', { name: '已作废-测试 · 测试' })).toBeTruthy()
+
+    fireEvent.click(confirmation.getByRole('button', { name: '删除员工' }))
+    await waitFor(() => expect(view.queryByRole('option', { name: '已作废-测试 · 测试' })).toBeNull())
+    expect(view.queryByRole('dialog')).toBeNull()
+    expect(writes).toEqual([{ id: retired.id }, { id: retired.id }])
   })
 })

@@ -91,6 +91,11 @@ const CHROME_ROWS: readonly ChromeRow[] = [
     height: ['min-height', '76px'],
   },
   {
+    file: 'client/ui-brand-official/src/client/PhoenixOffice.module.css',
+    selector: '.header',
+    markup: 'client/ui-brand-official/src/client/PhoenixOffice.tsx',
+  },
+  {
     file: DOCKKIT,
     selector: '.tabStrip',
     markup: 'client/ui-dockkit/src/components/TabPanel.tsx',

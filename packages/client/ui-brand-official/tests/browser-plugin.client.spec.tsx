@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply, inject } from '../src/client/index.ts'
 import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
@@ -13,6 +13,7 @@ afterEach(() => {
   cleanup()
   document.body.replaceChildren()
   document.documentElement.removeAttribute('data-phoenix-employee-surface')
+  document.documentElement.removeAttribute('data-platform')
   localStorage.clear()
   sessionStorage.clear()
   vi.unstubAllEnvs()
@@ -156,6 +157,19 @@ describe('official browser-brand plugin', () => {
     expect(employee.getByRole('button', { name: '返回 AI 办公室' })).toBeDefined()
   })
 
+  it('places the macOS return button after the shell drag regions and opens the office', () => {
+    localStorage.setItem('ds-bot:surface', 'bot')
+    document.documentElement.dataset.platform = 'darwin'
+    vi.stubGlobal('CSS', { supports: (property: string, value: string) => property === 'top' && value === 'anchor(top)' })
+    const onClick = vi.fn()
+    const employee = render(<header data-window-drag><OfficeReturn onClick={onClick} /></header>)
+    const back = employee.getByRole('button', { name: '返回 AI 办公室' })
+    expect(back.parentElement).toBe(document.body)
+    expect(employee.container.querySelector('header')?.contains(back)).toBe(false)
+    fireEvent.click(back)
+    expect(onClick).toHaveBeenCalledOnce()
+  })
+
   it('identifies an employee Session accidentally restored in the ordinary workspace', () => {
     localStorage.setItem('dsh.sessions.current', JSON.stringify({ sessionId: 'employee-1' }))
     localStorage.setItem('ds-bot:seen', JSON.stringify({ 'employee-1': 1 }))
@@ -181,17 +195,13 @@ describe('official browser-brand plugin', () => {
     expect(document.documentElement.hasAttribute('data-phoenix-employee-surface')).toBe(false)
   })
 
-  it('cancels and outlasts a pending employee restore when returning to the visual office', () => {
+  it('returns to the visual office once and clears both boot destinations', () => {
     sessionStorage.setItem('phoenix.native-bot.target.v1', 'employee-1')
+    sessionStorage.setItem('phoenix.native-bot.office.v1', '1')
     const selectPanel = vi.fn()
-    const pending: Array<() => void> = []
-    returnToPhoenixOffice(selectPanel, task => pending.push(task))
+    returnToPhoenixOffice(selectPanel)
     expect(sessionStorage.getItem('phoenix.native-bot.target.v1')).toBeNull()
-    expect(sessionStorage.getItem('phoenix.native-bot.office.v1')).toBe('1')
-    expect(selectPanel).toHaveBeenCalledWith('phoenix-office')
-    expect(pending).toHaveLength(3)
-    for (const task of pending) task()
-    expect(selectPanel).toHaveBeenCalledTimes(4)
     expect(sessionStorage.getItem('phoenix.native-bot.office.v1')).toBeNull()
+    expect(selectPanel).toHaveBeenCalledExactlyOnceWith('phoenix-office')
   })
 })

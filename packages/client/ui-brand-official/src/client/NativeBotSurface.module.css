@@ -4,6 +4,13 @@
 .mark{width:20px;height:20px;flex:none}
 @media(max-width:560px){.return{padding:0 9px}.label{display:none}}
 
+/* The full-width employee header is painted after the back button. Keep only
+   the shell header's drag region so Electron honors the button's no-drag area. */
+:global(html[data-platform=darwin][data-phoenix-employee-surface] header[data-window-drag] .bt-head){
+  -webkit-app-region:initial;
+  pointer-events:none;
+}
+
 /* The installed collaboration runtime keeps its behavior and storage; Phoenix owns its visual shell. */
 :global(body[data-phoenix-brand]){--bt-accent:#ff7a00;--bt-accent-ink:#fff;--bt-green:#6fa86e;--bt-star:#ff9a18;--bt-sidebar:var(--dsw-alias-bg-layer-1);--bt-main:var(--dsw-alias-bg-base);--bt-card:var(--dsw-alias-bg-layer-1);--bt-bubble:var(--dsw-alias-bg-layer-2);--bt-line:var(--dsw-alias-border-l2);--bt-line-2:var(--dsw-alias-border-l3);--bt-hover:var(--dsw-alias-interactive-bg-hover-solid);--bt-active:var(--dsw-alias-interactive-bg-active);--bt-user:#ff7a00;--bt-user-ink:#fff}
 :global(body[data-phoenix-brand] .bt-leftcol){background:linear-gradient(160deg,color-mix(in srgb,var(--bt-sidebar) 94%,#ff7a00),var(--bt-sidebar) 45%);border-right:1px solid var(--bt-line)}

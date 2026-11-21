@@ -165,25 +165,11 @@ export function openNativeBotSurface(sessionId?: string): void {
   }
 }
 
-/** Select the visual office and outlast the native team's pending chat restoration. */
-export function returnToPhoenixOffice(
-  selectPanel: (panel: MainPanelId) => void,
-  schedule: (task: () => void, delay: number) => unknown = (task, delay) => window.setTimeout(task, delay),
-): void {
+/** Cancel Phoenix's pending boot navigation and select the visual office. */
+export function returnToPhoenixOffice(selectPanel: (panel: MainPanelId) => void): void {
   sessionStorage.removeItem(TARGET_KEY)
-  // A requested employee can still be waiting in the native team's delayed
-  // navigation queue. Keep this transition in the current mounted workspace and
-  // reassert it briefly; an entire reload starts that native restore cycle again.
-  sessionStorage.setItem(OFFICE_KEY, '1')
-  const office = 'phoenix-office' as MainPanelId
-  selectPanel(office)
-  for (const [delay, done] of [[300, false], [900, false], [1_800, true]] as const) {
-    schedule(() => {
-      if (sessionStorage.getItem(OFFICE_KEY) !== '1') return
-      selectPanel(office)
-      if (done) sessionStorage.removeItem(OFFICE_KEY)
-    }, delay)
-  }
+  sessionStorage.removeItem(OFFICE_KEY)
+  selectPanel('phoenix-office' as MainPanelId)
 }
 
 /** Native team surface footer entry back to the Phoenix office. */
@@ -222,6 +208,7 @@ export function installNativeBotSurface(ctx: ClientContext): void {
       // The reused team runtime restores its last chat shortly after mount. Select the
       // office after that restore so a home-page click cannot be overwritten by it.
       const timer = window.setTimeout(() => {
+        if (sessionStorage.getItem(OFFICE_KEY) !== '1') return
         scope.layout.selectPanel('phoenix-office' as MainPanelId)
         sessionStorage.removeItem(OFFICE_KEY)
       }, 1_000)
@@ -235,12 +222,17 @@ export function installNativeBotSurface(ctx: ClientContext): void {
       let timer: number | undefined
       let unsubscribe = () => {}
       const stage = () => {
+        if (sessionStorage.getItem(TARGET_KEY) !== target) {
+          unsubscribe()
+          return true
+        }
         const list = scope.sessions.list.getSnapshot()
         if (list.byId[sessionId] !== undefined) {
           unsubscribe()
           // The team plugin restores its previous chat after the Session list is ready.
           // Wait for that restore, then select the requested employee exactly once.
           timer = window.setTimeout(() => {
+            if (sessionStorage.getItem(TARGET_KEY) !== target) return
             scope.layout.selectPanel(null)
             scope.uiWorkspace.openSession(sessionId)
             sessionStorage.removeItem(TARGET_KEY)

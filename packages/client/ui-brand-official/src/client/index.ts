@@ -5,6 +5,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { PixelWhale } from './home-whale/PixelWhale.tsx'
@@ -13,6 +14,7 @@ import { PhoenixBrandMark, PhoenixBrandName } from './PhoenixBrand.tsx'
 import { installPhoenixTheme } from './PhoenixTheme.ts'
 import { PhoenixOffice, PhoenixOfficeIcon } from './PhoenixOffice.tsx'
 import { OfficeReturn } from './OfficeReturn.tsx'
+import { en as officeEn, zh as officeZh } from './office/locales.ts'
 import { enterNativeBotSurface, installNativeBotSurface, isNativeBotSurface, leaveNativeBotSurface, openNativeBotSurface, returnToPhoenixOffice } from './NativeBotSurface.tsx'
 
 /** Required service: the UI slot registry. */
@@ -31,13 +33,14 @@ export function apply(ctx: ClientContext): void {
         yield ctx.slots.register({ name: 'sidebar.brand.mark', priority: -1_000 }, PhoenixBrandMark)
         yield ctx.slots.register({ name: 'sidebar.brand.name', priority: -1_000 }, PhoenixBrandName)
       }))
-    ctx.inject(['layout', 'uiWorkspace'], (scope) => {
+    ctx.inject(['layout', 'uiWorkspace', 'locale'], (scope) => {
+      scope.effect(() => scope.locale.register('phoenix.office', { en: officeEn, zh: officeZh }), 'phoenix-office: dictionary')
       scope.slots.inject('conversation.header.leading', () => scope.slots.register({
         name: 'conversation.header.leading',
         inject: () => ({ onClick: () => returnToPhoenixOffice(panel => scope.layout.selectPanel(panel)) }),
       }, OfficeReturn))
       scope.slots.inject('main', () => scope.slots.register({
-        name: 'main', key: 'phoenix-office',
+        name: 'main', key: 'phoenix-office', locale: 'phoenix.office',
         inject: () => ({
           onHome: () => {
             if (isNativeBotSurface()) leaveNativeBotSurface()

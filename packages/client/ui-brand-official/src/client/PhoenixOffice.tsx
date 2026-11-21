@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
+import { phoenixTerm } from './NativeBotSurface.tsx'
 import css from './PhoenixOffice.module.css'
 import { OfficeScene } from './office/OfficeScene.tsx'
 import { officePeople, visibleOfficePeople, type OfficeBot as Bot, type OfficeState } from './office/model.ts'
@@ -34,14 +37,14 @@ function employeeColor(id: string): string {
   return EMPLOYEE_COLORS[hash % EMPLOYEE_COLORS.length] ?? '#ff7417'
 }
 
-type PhoenixOfficeProps = {
+type PhoenixOfficeProps = PropsLocale<'phoenix.office'> & {
   onHome: () => void
   onEnterOffice?: () => void
   onOpenNative: (sessionId?: string) => void
 }
 
 /** Phoenix's visual office. Complete employee and group management stays in one native data surface. */
-export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative }: PhoenixOfficeProps) {
+export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative, t }: PhoenixOfficeProps) {
   const [state, setState] = useState<OfficeState | null>(null)
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [selected, setSelected] = useState('')
@@ -52,16 +55,24 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative }: PhoenixOf
   const [playing, setPlaying] = useState(() => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   const [roomId, setRoomId] = useState('')
   const [hall, setHall] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const deleting = useRef(false)
+  const [deletePending, setDeletePending] = useState(false)
+  const readSequence = useRef(0)
   const previousRoomIds = useRef<string[] | null>(null)
 
   useEffect(() => { onEnterOffice?.() }, [onEnterOffice])
 
   const refresh = useCallback(async () => {
+    const sequence = ++readSequence.current
     try {
       const next = await botRequest<OfficeState>('state', { locale: navigator.language })
+      if (sequence !== readSequence.current) return
       setState(next)
       setConnectionError(null)
     } catch (cause) {
+      if (sequence !== readSequence.current) return
       setConnectionError(cause instanceof Error ? cause.message : '无法读取员工')
     }
   }, [])
@@ -87,6 +98,9 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative }: PhoenixOf
   const nativeHome = staff.find(bot => state?.mainBotIds.includes(bot.id))?.sessionId ?? staff.find(bot => bot.sessionId)?.sessionId
   const people = useMemo(() => officePeople(state, !!connectionError, roomId), [state, connectionError, roomId])
   const selectedBot = staff.find(bot => bot.id === selected)
+  const deleteBlocked = selectedBot && state?.mainBotIds.includes(selectedBot.id)
+    ? t('employee.deleteProtected')
+    : state?.readOnly ? t('employee.deleteReadOnly', { message: phoenixTerm(state.readOnly) }) : null
   const selectedPerson = people.find(person => person.id === selected)
   const floorCount = Math.max(1, ...people.map(person => person.floor + 1))
   const visibleFloor = Math.min(floor, floorCount - 1)
@@ -102,6 +116,33 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative }: PhoenixOf
   const activeRoom = state?.rooms?.find(room => room.id === roomId)
   const elsewhere = people.filter(person => person.activeRoomId && person.activeRoomId !== roomId).length
   const working = staff.filter(bot => statusFor(bot, state).busy).length
+  const closeDelete = () => {
+    if (deleting.current) return
+    setDeleteTarget(null)
+    setDeleteError(null)
+  }
+  const deleteEmployee = async () => {
+    if (!deleteTarget || deleting.current) return
+    deleting.current = true
+    setDeletePending(true)
+    setDeleteError(null)
+    try {
+      const next = await botRequest<OfficeState>('delete-bot', { id: deleteTarget.id })
+      // Ignore any still-running poll that read the roster before the deletion.
+      readSequence.current++
+      setState(previous => ({ ...previous, ...next }))
+      setConnectionError(null)
+      setSelected('')
+      setFocused(false)
+      setDeleteTarget(null)
+      void refresh()
+    } catch (cause) {
+      setDeleteError(t('employee.deleteFailed', { message: phoenixTerm(cause instanceof Error ? cause.message : String(cause)) }))
+    } finally {
+      deleting.current = false
+      setDeletePending(false)
+    }
+  }
 
   return <main className={css.page}>
     <header className={css.header} data-window-drag>
@@ -141,8 +182,27 @@ export function PhoenixOffice({ onHome, onEnterOffice, onOpenNative }: PhoenixOf
           <button className={css.secondary} onClick={() => setFocused(!focused)}>{focused ? '返回总览' : '查看工位'}</button>
           <button className={css.primary} disabled={!selectedBot.sessionId}
             onClick={() => onOpenNative(selectedBot.sessionId)}>开始对话 →</button>
+          {deleteBlocked
+            ? <small>{deleteBlocked}</small>
+            : <Button variant="outline" className={css.deleteAction} onClick={() => setDeleteTarget(selectedBot)}>
+              {t('employee.delete')}
+            </Button>}
         </> : <p>点击办公室中的小火人，即可在这里查看岗位、状态、资料文件夹并开始对话。</p>}
       </div>
+      {deleteTarget && <Modal
+        open
+        onClose={closeDelete}
+        title={t('employee.deleteTitle', { name: deleteTarget.name })}
+        closeLabel={t('employee.close')}
+        description={t('employee.deleteDescription')}
+        tone="warning"
+        footer={<>
+          <Button variant="outline" onClick={closeDelete} disabled={deletePending} data-modal-autofocus>{t('employee.cancel')}</Button>
+          <Button variant="outline" className={css.deleteAction} disabled={deletePending} onClick={() => { void deleteEmployee() }}>
+            {t(deletePending ? 'employee.deletePending' : 'employee.delete')}
+          </Button>
+        </>}
+      >{deleteError && <p role="alert">{deleteError}</p>}</Modal>}
       <section className={css.scene} aria-label="可视化办公室">
         <OfficeScene
           people={visiblePeople}

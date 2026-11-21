@@ -12,6 +12,7 @@
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../ui-renderer" },
+    { "path": "../locale/tsconfig.client.json" },
     { "path": "../ui-primitives" },
     { "path": "../ui-sidebar" },
     { "path": "../ui-workspace" },
