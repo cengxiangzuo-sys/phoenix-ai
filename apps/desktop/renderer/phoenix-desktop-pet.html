@@ -10,46 +10,84 @@
   </head>
   <body>
     <section id="details" class="details" aria-labelledby="details-title" hidden>
-      <header><span id="details-title">Phoenix AI</span><a id="collapse" href="?action=details">×</a></header>
+      <header>
+        <span id="details-title">Phoenix AI</span>
+        <div class="tools">
+          <a id="open" href="?action=open" aria-label="Open Phoenix AI">↗</a>
+          <a id="hide" href="?action=hide" aria-label="Hide desktop pet">−</a>
+          <a id="collapse" href="?action=details" aria-label="Close details">×</a>
+        </div>
+      </header>
       <h2 id="balance-title">API balance</h2>
       <div id="balance" class="balance" role="status"></div>
       <h2 id="work-title">Current sessions</h2>
       <ul id="work"></ul>
     </section>
-    <a class="pet" id="mascot-button" href="?action=details" aria-label="Show balance and sessions" aria-expanded="false">
-      <svg class="mascot" viewBox="0 0 108 112" aria-hidden="true">
+    <a class="pet" id="mascot-button" href="?action=details" draggable="false" aria-label="Show balance and sessions" aria-expanded="false">
+      <svg class="mascot" viewBox="0 0 80 82" aria-hidden="true">
         <defs>
-          <linearGradient id="fire" x1="15%" y1="8%" x2="85%" y2="98%">
-            <stop stop-color="#ffb21e"/>
-            <stop offset=".48" stop-color="#ff7900"/>
-            <stop offset="1" stop-color="#f24b0a"/>
+          <linearGradient id="fire" x1="28%" y1="9%" x2="65%" y2="99%">
+            <stop stop-color="#ffe36f"/>
+            <stop offset=".45" stop-color="#ffac28"/>
+            <stop offset=".75" stop-color="#fc7924"/>
+            <stop offset="1" stop-color="#dd481c"/>
           </linearGradient>
+          <linearGradient id="glint" x1="40%" y1="0%" x2="54%" y2="97%">
+            <stop stop-color="#fff6c4" stop-opacity=".94"/>
+            <stop offset="1" stop-color="#ffda88" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="limb" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stop-color="#ffb642"/>
+            <stop offset="1" stop-color="#bd491d"/>
+          </linearGradient>
+          <radialGradient id="shadow">
+            <stop stop-color="#2e130b" stop-opacity=".38"/>
+            <stop offset="1" stop-color="#2e130b" stop-opacity="0"/>
+          </radialGradient>
         </defs>
-        <ellipse cx="53" cy="103" rx="33" ry="5" fill="#27140f" opacity=".22"/>
-        <path d="M40 84v16h-8m31-16v16h8" stroke="#57362a" stroke-width="5" fill="none" stroke-linecap="round"/>
-        <g class="body">
-          <path d="M27 69c-4 7-8 11-13 12m64-13c5 8 10 12 15 11" stroke="#57362a" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <circle cx="13" cy="81" r="3" fill="#ff7900"/>
-          <circle cx="94" cy="79" r="3" fill="#ff7900"/>
-          <path fill="url(#fire)" transform="translate(5 -2)" d="M48 91c-19.4 0-34-13.5-34-31.4C14 43.8 24.2 32 31.8 23.2c-.1 8.4 3.1 13.2 7.7 13.9C49 34 55.5 22.7 58.7 8c11.4 9.6 16.8 19.2 16.3 29.3 8.5 7.2 12.9 14.9 12.9 24.2C87.9 78 69.6 91 48 91Z"/>
-          <g class="eyes" fill="#27140f">
-            <circle cx="40" cy="56" r="3.2"/>
-            <circle cx="66" cy="56" r="3.2"/>
+        <ellipse class="shadow" cx="40" cy="73" rx="27" ry="6" fill="url(#shadow)"/>
+        <g class="flare" fill="#ffb536">
+          <ellipse class="flare-ring" cx="40" cy="68" rx="29" ry="6" fill="none" stroke="#ff9b32" stroke-width="1.7"/>
+          <path class="spark spark-a" d="m23 46 2 4 4 2-4 1-2 4-1-4-4-1 4-2z"/>
+          <path class="spark spark-b" d="m57 35 2 5 4 2-4 1-2 5-2-5-4-1 4-2z" fill="#ffd97d"/>
+          <circle class="spark spark-c" cx="52" cy="28" r="2.5"/>
+          <circle class="spark spark-d" cx="38" cy="30" r="2" fill="#ff7842"/>
+        </g>
+        <g class="pose">
+          <g class="body">
+            <path d="M33 63v5q0 3-4 3h-1m20-8v5q0 3 4 3h1" fill="none" stroke="url(#limb)" stroke-width="4.8" stroke-linecap="round"/>
+            <g class="hands">
+              <path d="M21 53q-6 6-10 5" fill="none" stroke="url(#limb)" stroke-width="4.4" stroke-linecap="round"/>
+              <path class="waving-hand" d="M60 53q5 6 10 4" fill="none" stroke="url(#limb)" stroke-width="4.4" stroke-linecap="round"/>
+            </g>
+            <path fill="url(#fire)" stroke="#c44522" stroke-opacity=".38" stroke-width=".7"
+              d="M40 67c-15 0-25-9.4-25-21.8 0-9.7 5.2-17 13.7-23.9-.3 5.5 1.5 8.3 4.7 8.6 5.8-4.1 10.4-13.5 11-23.3 9.6 6.4 15.7 15.5 14.9 24.3 4.7 4.2 7.1 9 7.1 15.1C66.4 58.4 55.4 67 40 67Z"/>
+            <path fill="url(#glint)"
+              d="M45 11c5.3 5 7.3 10.3 6 15.1-.9 3.4-3.8 6.5-7.5 7.2 5.1-5.6 4.4-13.2 1.5-22.3ZM27 28c-1.1 4.5-.1 7.5 3.1 8.9-5.6.2-8.3 5.8-8.4 9.7-1.5-6.2.2-12.8 5.3-18.6Z"/>
+            <g fill="#ec512c" opacity=".6">
+              <ellipse cx="25.5" cy="51.4" rx="3.7" ry="1.9"/>
+              <ellipse cx="55.2" cy="51.4" rx="3.7" ry="1.9"/>
+            </g>
+            <g class="eyes" fill="#412018">
+              <ellipse cx="33" cy="45.5" rx="3.4" ry="4"/>
+              <ellipse cx="48" cy="45.5" rx="3.4" ry="4"/>
+              <circle cx="31.9" cy="44.1" r="1.15" fill="#fff4d9"/>
+              <circle cx="46.9" cy="44.1" r="1.15" fill="#fff4d9"/>
+            </g>
+            <path d="M37.2 53.2q3.4 3.5 6.8 0" fill="none" stroke="#612b1b" stroke-width="2" stroke-linecap="round"/>
+            <g class="typing">
+              <path d="M24 61h32l4 9H20Z" fill="#5a3026" stroke="#8d492e" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M27 64h2m3 0h2m4 0h3m4 0h2m4 0h2m-20 3h15" fill="none" stroke="#ffc267" stroke-width="1.3" stroke-linecap="round"/>
+              <circle class="typing-hand hand-left" cx="30" cy="61.4" r="3" fill="#ffae43"/>
+              <circle class="typing-hand hand-right" cx="50" cy="61.4" r="3" fill="#ffae43"/>
+              <g class="typing-embers" fill="#ffd37a">
+                <circle cx="26" cy="57" r="1.5"/>
+                <circle cx="55" cy="55.5" r="1.2"/>
+              </g>
+            </g>
           </g>
-          <g class="typing">
-            <path d="M23 79h61l6 16H16z" fill="#633728" stroke="#47231a" stroke-width="2"/>
-            <path d="M27 85h5m5 0h5m5 0h5m5 0h5m5 0h5m5 0h5m-41 5h28" fill="none" stroke="#ffac43" stroke-width="2.5" stroke-linecap="round"/>
-            <circle class="typing-hand hand-left" cx="34" cy="81" r="5" fill="#ff980e"/>
-            <circle class="typing-hand hand-right" cx="70" cy="81" r="5" fill="#ff980e"/>
-          </g>
-          <path d="M44 69c5.7 5.1 13.8 5.1 19 0" fill="none" stroke="#27140f" stroke-width="3.4" stroke-linecap="round"/>
         </g>
       </svg>
     </a>
-    <div class="controls">
-      <span id="drag" class="drag" aria-hidden="true"></span>
-      <a id="open" href="phoenix-desktop-pet.html?action=open" aria-label="Open Phoenix AI" title="Open Phoenix AI">↗</a>
-      <a id="hide" href="phoenix-desktop-pet.html?action=hide" aria-label="Hide desktop pet" title="Hide desktop pet">×</a>
-    </div>
   </body>
 </html>

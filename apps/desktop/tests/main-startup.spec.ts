@@ -2,6 +2,7 @@ import { parsePluginOperationRecord } from '@deepseek-ai/dsh-plugin-manager/diag
 import type { DesktopHostProcess } from '../src/host-process.ts'
 import type { AccountView } from '@deepseek-ai/dsh-deepseek-account/types'
 import { WINDOWS_TITLEBAR_HEIGHT } from '../src/windows-layout.ts'
+import { PET_DRAG } from '../src/phoenix-pet-protocol.ts'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { IpcMainInvokeEvent } from 'electron'
 import { join } from 'node:path'
@@ -84,6 +85,7 @@ const harness = await vi.hoisted(async () => {
     readonly urls: string[] = []
     readonly webContents = Object.assign(new EventEmitter(), {
       id: 42,
+      ipc: new EventEmitter(),
       setWindowOpenHandler: vi.fn(),
       insertCSS: vi.fn(async () => 'blur'),
       removeInsertedCSS: vi.fn(async () => {}),
@@ -108,6 +110,7 @@ const harness = await vi.hoisted(async () => {
     readonly setAlwaysOnTop = vi.fn()
     readonly restore = vi.fn()
     readonly setSize = vi.fn()
+    readonly setPosition = vi.fn()
     readonly getBounds = vi.fn(() => ({ x: 0, y: 0, width: 800, height: 700 }))
     readonly setMinimumSize = vi.fn()
     readonly setTitleBarOverlay = vi.fn()
@@ -1317,7 +1320,7 @@ describe('desktop main startup', () => {
     expect(harness.windows).toHaveLength(windowsBeforePet + 1)
     const pet = harness.windows.at(-1)!
     expect(pet.options).toMatchObject({
-      transparent: true, alwaysOnTop: true, x: 752, y: 486,
+      transparent: true, alwaysOnTop: true, x: 800, y: 548, width: 76, height: 78,
       webPreferences: { sandbox: true, nodeIntegration: false },
     })
     expect(pet.showInactive).toHaveBeenCalledOnce()
@@ -1326,7 +1329,7 @@ describe('desktop main startup', () => {
     pet.webContents.emit('context-menu', contextMenu)
     expect(contextMenu.preventDefault).toHaveBeenCalledOnce()
     const animationItems = harness.menu.mock.lastCall![0]
-    expect(animationItems.slice(0, 4).map(item => item.label)).toEqual(['Follow work', 'Wave', 'Nap', 'Still'])
+    expect(animationItems.slice(0, 5).map(item => item.label)).toEqual(['Follow work', 'Wave', 'Flare', 'Nap', 'Still'])
     const selectWave = animationItems[1]!.click as () => void
     selectWave()
     expect(pet.webContents.send).toHaveBeenLastCalledWith('phoenix-desktop-pet:state', expect.objectContaining({ animation: 'wave' }))
@@ -1334,6 +1337,23 @@ describe('desktop main startup', () => {
     const work = [{ id: 'session-running', title: 'Review chapter' }]
     invoke(DESKTOP_IPC.phoenixPetWork, 'app', work)
     expect(pet.webContents.send).toHaveBeenLastCalledWith('phoenix-desktop-pet:state', expect.objectContaining({ work }))
+    pet.getBounds.mockReturnValue({ x: 800, y: 548, width: 76, height: 78 })
+    const dragEvent = { senderFrame: pet.webContents.mainFrame }
+    const drag = (phase: string, delta?: { x: number; y: number }) => {
+      pet.webContents.ipc.emit(PET_DRAG, dragEvent, phase, delta)
+    }
+    drag('start')
+    drag('update', { x: 2, y: 1 })
+    drag('cancel')
+    expect(pet.setPosition).not.toHaveBeenCalled()
+    pet.webContents.ipc.emit(PET_DRAG, { senderFrame: { url: pet.webContents.mainFrame.url } }, 'start')
+    drag('update', { x: -514, y: -334 })
+    expect(pet.setPosition).not.toHaveBeenCalled()
+    drag('start')
+    drag('update', { x: -514, y: -334 })
+    expect(pet.setPosition).toHaveBeenLastCalledWith(286, 214)
+    drag('finish', { x: -821, y: -564 })
+    expect(pet.setPosition).toHaveBeenLastCalledWith(0, 0)
     const target = pathToFileURL(join('desktop-test-app', 'renderer', 'phoenix-desktop-pet.html'))
     const blocked = { url: 'https://example.test/?action=hide', preventDefault: vi.fn() }
     pet.webContents.emit('will-navigate', blocked)
@@ -1352,6 +1372,7 @@ describe('desktop main startup', () => {
     await vi.advanceTimersByTimeAsync(0)
     const reopened = harness.windows.at(-1)!
     expect(reopened).not.toBe(pet)
+    expect(reopened.options).toMatchObject({ x: 0, y: 0 })
     harness.app.quit()
     await vi.advanceTimersByTimeAsync(0)
     expect(reopened.isDestroyed()).toBe(true)

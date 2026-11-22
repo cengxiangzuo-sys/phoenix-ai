@@ -2,18 +2,26 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, Menu, screen, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, Menu, screen, type MenuItemConstructorOptions, type Point, type Rectangle } from 'electron'
 import type { AccountDetails } from '@deepseek-ai/dsh-deepseek-account/types'
 import { z } from 'zod'
-import { PET_STATE } from './phoenix-pet-protocol.ts'
+import { PET_DRAG, PET_STATE } from './phoenix-pet-protocol.ts'
 
-const WIDTH = 124
-const HEIGHT = 140
+const WIDTH = 76
+const HEIGHT = 78
 const PANEL_WIDTH = 314
-const PANEL_HEIGHT = 398
+const PANEL_HEIGHT = 336
 const INSET = 24
-const animationSchema = z.enum(['auto', 'wave', 'nap', 'still'])
-const preferencesSchema = z.object({ enabled: z.boolean(), animation: animationSchema })
+const animationSchema = z.enum(['auto', 'wave', 'flare', 'nap', 'still'])
+const positionSchema = z.object({ x: z.number().int(), y: z.number().int() })
+const preferencesSchema = z.object({ enabled: z.boolean(), animation: animationSchema, position: positionSchema.optional() })
+
+function keepOnDisplay(bounds: Rectangle, workArea: Rectangle): Point {
+  return {
+    x: Math.max(workArea.x, Math.min(bounds.x, workArea.x + workArea.width - bounds.width)),
+    y: Math.max(workArea.y, Math.min(bounds.y, workArea.y + workArea.height - bounds.height)),
+  }
+}
 const workSchema = z.array(z.object({ id: z.string().min(1).max(160), title: z.string().max(180) })).max(5)
 
 type PetBalance = AccountDetails['balance'] | 'loading' | 'offline' | null
@@ -34,6 +42,7 @@ export class PhoenixDesktopPet {
   private expanded = false
   private balance: PetBalance = null
   private balanceRequest = 0
+  private compactPosition: Point | undefined
   private readonly path = join(app.getPath('userData'), 'desktop', 'phoenix-pet.json')
   private preferences: z.infer<typeof preferencesSchema> = { enabled: false, animation: 'auto' }
 
@@ -85,7 +94,7 @@ export class PhoenixDesktopPet {
       }
       await this.loading
     } else {
-      this.window?.close()
+      this.window?.destroy()
     }
     const visible = this.isVisible()
     this.preferences = { ...this.preferences, enabled: visible }
@@ -124,11 +133,10 @@ export class PhoenixDesktopPet {
     this.expanded = !this.expanded
     const width = this.expanded ? PANEL_WIDTH : WIDTH
     const height = this.expanded ? PANEL_HEIGHT : HEIGHT
-    window.setBounds({
-      x: Math.max(workArea.x, Math.min(old.x + old.width, workArea.x + workArea.width) - width),
-      y: Math.max(workArea.y, Math.min(old.y + old.height, workArea.y + workArea.height) - height),
-      width, height,
-    })
+    const aligned = { x: old.x + old.width - width, y: old.y + old.height - height }
+    const preferred = this.expanded ? aligned : this.compactPosition ?? aligned
+    const position = keepOnDisplay({ ...preferred, width, height }, workArea)
+    window.setBounds({ ...position, width, height })
     const request = ++this.balanceRequest
     this.balance = this.expanded ? 'loading' : null
     this.publish()
@@ -140,15 +148,55 @@ export class PhoenixDesktopPet {
     })
   }
 
+  private installDrag(window: BrowserWindow, page: string): void {
+    let drag: { origin: Rectangle; target?: Point } | undefined
+    window.webContents.ipc.on(PET_DRAG, (event, phase: unknown, delta: unknown) => {
+      const frame = event.senderFrame
+      if (frame === null || frame !== window.webContents.mainFrame || frame.url.split('?')[0] !== page) return
+      if (phase === 'start') {
+        drag = { origin: window.getBounds() }
+        return
+      }
+      if (drag === undefined) return
+      if (phase === 'update' || phase === 'finish') {
+        const movement = positionSchema.safeParse(delta)
+        if (!movement.success) return
+        const { x, y } = movement.data
+        if (Math.abs(x) > 100_000 || Math.abs(y) > 100_000) return
+        if (drag.target === undefined && Math.hypot(x, y) < 5) {
+          if (phase === 'finish') drag = undefined
+          return
+        }
+        drag.target = { x: drag.origin.x + x, y: drag.origin.y + y }
+        if (phase === 'update') {
+          window.setPosition(drag.target.x, drag.target.y)
+          return
+        }
+      } else if (phase !== 'cancel') return
+      const { origin, target } = drag
+      drag = undefined
+      if (target === undefined) return
+      const bounds = { ...origin, ...target }
+      const { workArea } = screen.getDisplayMatching(bounds)
+      const position = keepOnDisplay(bounds, workArea)
+      window.setPosition(position.x, position.y)
+      this.compactPosition = { x: position.x + bounds.width - WIDTH, y: position.y + bounds.height - HEIGHT }
+      this.preferences = { ...this.preferences, position: this.compactPosition }
+      try { this.save() } catch { console.warn('Phoenix desktop pet: position could not be saved') }
+    })
+  }
+
   private async show(locale: string): Promise<void> {
     const chinese = locale === 'zh-CN'
-    const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+    const saved = this.preferences.position
+    const { workArea } = screen.getDisplayNearestPoint(saved ?? screen.getCursorScreenPoint())
+    const corner = { x: workArea.x + workArea.width - WIDTH - INSET, y: workArea.y + workArea.height - HEIGHT - INSET }
+    this.compactPosition = keepOnDisplay({ ...(saved ?? corner), width: WIDTH, height: HEIGHT }, workArea)
     const path = join(app.getAppPath(), 'renderer', 'phoenix-desktop-pet.html')
     const page = pathToFileURL(path).href
     const window = new BrowserWindow({
       width: WIDTH, height: HEIGHT,
-      x: Math.max(workArea.x, workArea.x + workArea.width - WIDTH - INSET),
-      y: Math.max(workArea.y, workArea.y + workArea.height - HEIGHT - INSET),
+      ...this.compactPosition,
       title: chinese ? 'Phoenix 小火人' : 'Phoenix desktop pet',
       transparent: true, frame: false, show: false, alwaysOnTop: true, skipTaskbar: true,
       resizable: false, minimizable: false, maximizable: false, fullscreenable: false,
@@ -159,6 +207,7 @@ export class PhoenixDesktopPet {
       },
     })
     this.window = window
+    this.installDrag(window, page)
     window.once('closed', () => {
       if (this.window !== window) return
       this.window = undefined
@@ -186,8 +235,8 @@ export class PhoenixDesktopPet {
     window.webContents.on('context-menu', (event) => {
       event.preventDefault()
       const labels = chinese
-        ? { auto: '跟随工作', wave: '轻轻挥手', nap: '打盹', still: '静止' }
-        : { auto: 'Follow work', wave: 'Wave', nap: 'Nap', still: 'Still' }
+        ? { auto: '跟随工作', wave: '轻轻挥手', flare: '焰火爆发', nap: '打盹', still: '静止' }
+        : { auto: 'Follow work', wave: 'Wave', flare: 'Flare', nap: 'Nap', still: 'Still' }
       Menu.buildFromTemplate([
         ...animationSchema.options.map((animation): MenuItemConstructorOptions => ({
           label: labels[animation], type: 'radio', checked: this.preferences.animation === animation,
@@ -198,6 +247,7 @@ export class PhoenixDesktopPet {
           },
         })),
         { type: 'separator' },
+        { label: chinese ? '打开 Phoenix AI' : 'Open Phoenix AI', click: this.options.openPhoenix },
         { label: chinese ? '隐藏桌宠' : 'Hide desktop pet', click: hide },
       ]).popup({ window })
     })
