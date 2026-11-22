@@ -193,6 +193,8 @@ const harness = await vi.hoisted(async () => {
     getPreferredSystemLanguages: () => ['en-US'],
     getVersion: () => '1.0.0',
     getName: () => 'DeepSeek Harness',
+    setName: vi.fn(),
+    setPath: vi.fn<(name: string, path: string) => void>(),
     getAppPath: (): string => 'desktop-test-app',
     setAppLogsPath: vi.fn(),
     getPath: vi.fn<(name: string) => string>(),
@@ -475,7 +477,9 @@ beforeEach(() => {
   harness.reset()
   const userData = mkdtempSync(join(tmpdir(), 'dsh-main-user-data-'))
   onTestFinished(() => { rmSync(userData, { recursive: true, force: true }) })
-  harness.app.getPath.mockImplementation(name => name === 'userData' ? userData : join(userData, `desktop-test-${name}`))
+  let activeUserData = userData
+  harness.app.getPath.mockImplementation(name => name === 'userData' ? activeUserData : join(userData, `desktop-test-${name}`))
+  harness.app.setPath.mockImplementation((name, path) => { if (name === 'userData') activeUserData = path })
   vi.mocked(writeCrashReport).mockResolvedValue(join(harness.app.getPath('logs'), 'crash-test.log'))
   harness.dialog.showMessageBox.mockImplementation((options: { title?: string }) => {
     if (options.title !== en.startupFailed && options.title !== zh.startupFailed) return Promise.resolve({ response: 1 })
@@ -485,6 +489,8 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
   vi.spyOn(console, 'info').mockImplementation(() => {})
   vi.spyOn(console, 'warn').mockImplementation(() => {})
+  vi.stubEnv('DSH_HOME', undefined)
+  vi.stubEnv('DSH_CLIENT_BRAND', undefined)
   vi.stubEnv('DSH_DESKTOP_PNPM_ENTRY', 'test-pnpm')
   vi.stubEnv('DSH_DESKTOP_DSH_DIR', 'test-runtime')
   vi.stubEnv('DSH_DESKTOP_PRIMARY_RUNTIME_DIR', 'test-primary-runtime')
@@ -513,6 +519,27 @@ afterEach(async () => {
 })
 
 describe('desktop main startup', () => {
+  it('isolates packaged Phoenix storage even when Electron starts with the upstream name', async () => {
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    vi.stubEnv('DSH_HOME', 'test-original-harness-home')
+    await readyForUpdate()
+    const userData = join(harness.app.getPath('appData'), 'Phoenix AI')
+    expect(harness.app.setName).toHaveBeenCalledWith('Phoenix AI')
+    expect(harness.app.setPath).toHaveBeenCalledWith('userData', userData)
+    expect(harness.app.getPath('userData')).toBe(userData)
+    expect(process.env.DSH_HOME).toBe(join(userData, 'harness'))
+    expect(harness.app.setAsDefaultProtocolClient).toHaveBeenCalledWith('phoenix-ai')
+  })
+
+  it('preserves the user-selected Harness home in an upstream desktop build', async () => {
+    vi.stubEnv('DSH_HOME', 'test-original-harness-home')
+    await readyForUpdate()
+    expect(harness.app.setName).not.toHaveBeenCalled()
+    expect(harness.app.setPath).not.toHaveBeenCalled()
+    expect(process.env.DSH_HOME).toBe('test-original-harness-home')
+    expect(harness.app.setAsDefaultProtocolClient).toHaveBeenCalledWith('dsh')
+  })
+
   it.each([true, false])('selects the package manager before Host startup (packaged=%s)', async (packaged) => {
     harness.app.isPackaged = packaged
     await readyForUpdate()

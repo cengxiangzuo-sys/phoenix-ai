@@ -7,6 +7,7 @@ import { DesktopUpdateSettings } from './update-settings.ts'
 import { isDesktopUpdateChannel } from './settings-file.ts'
 import type { ProductEventMap, ProductEvent } from '@deepseek-ai/dsh-client-product-analytics/types'
 import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
+import { mkdirSync } from 'node:fs'
 import { access, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -75,10 +76,14 @@ import { phoenixMobileDownloadUrl, phoenixMobileMessages, PHOENIX_ANDROID_SHARE 
 import { PhoenixDesktopPet } from './phoenix-desktop-pet.ts'
 import { PHOENIX_PLUGIN_SEEDS, PHOENIX_PLUGINS_SEED, seedPhoenixPlugin } from './phoenix-remote.ts'
 
-// A packaged Phoenix build owns its own Harness home. Electron already gives
-// the renamed bundle a distinct userData directory; keep Host data separate too.
-if (app.isPackaged && app.getName() === 'Phoenix AI') {
-  process.env.DSH_HOME = join(app.getPath('appData'), 'Phoenix AI', 'harness')
+// The bundle display name does not control Electron's default profile path.
+const phoenixDesktop = process.env.DSH_CLIENT_BRAND === 'phoenix'
+if (app.isPackaged && phoenixDesktop) {
+  const userData = join(app.getPath('appData'), 'Phoenix AI')
+  mkdirSync(userData, { recursive: true, mode: 0o700 })
+  app.setName('Phoenix AI')
+  app.setPath('userData', userData)
+  process.env.DSH_HOME = join(userData, 'harness')
 }
 
 let focusPrimaryWindow = (): void => {}
@@ -1553,7 +1558,7 @@ async function main(): Promise<void> {
   }
 
   if (app.isPackaged || process.env.DSH_DESKTOP_DEV_APP === '1') {
-    app.setAsDefaultProtocolClient(app.getName().startsWith('Phoenix AI') ? 'phoenix-ai' : 'dsh')
+    app.setAsDefaultProtocolClient(phoenixDesktop ? 'phoenix-ai' : 'dsh')
   }
   app.on('open-url', (event, url) => {
     event.preventDefault()
