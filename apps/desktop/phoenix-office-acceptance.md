@@ -345,3 +345,9 @@ Phoenix 宿主现在为原生 `message_bot` 和 `post_to_group` 增加每 Agent�
 浮窗从 124 × 140 缩到 76 × 78。右键菜单和详情保留打开主窗口、隐藏桌宠的操作。窗口跟随小火人上的拖动手势，在松手后记住位置。停靠点在显示器变化后会落到可用范围内。右键新增「焰火爆发」。工作时键盘动作带火星，拖动时角色轻微倾身。
 
 257 项桌面相关自动测试通过。使用独立 macOS Electron 窗口实测了鼠标拖动、松手保存、轻点打开详情、收起后回到原拖放位置，以及右键选择焰火爆发。余额和会话为本地测试数据。浏览器渲染检查覆盖紧凑布局、浅色详情、键盘激活和减少动态效果。Windows 拖动通过自动模拟，待实机界面复测。
+
+### Windows 桌宠版交付（2026-11-22）
+
+[Windows x64 桌宠预发布版](https://github.com/cengxiangzuo-sys/phoenix-ai/releases/tag/phoenix-windows-8d862b84) 对应源码提交 `8d862b8448`。[真实 Windows 构建](https://github.com/cengxiangzuo-sys/phoenix-ai/actions/runs/45012291146) 完成打包、静默安装、已安装程序及预置插件资源检查。Windows 鼠标交互仍待实机复测。
+
+安装器 `Phoenix-AI-Windows-x64-8d862b84.exe` 为未签名预发布版本，大小 345,215,064 字节。Windows 构建记录、本地副本与发布页的 SHA-256 均为 `e47c2508cdf068a8671925051736596b58e6dfce11d57a9064215258bc4a13b6`。本地 EXE 可直接复制到 Windows x64 电脑安装。
