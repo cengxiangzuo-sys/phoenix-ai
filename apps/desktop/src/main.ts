@@ -75,6 +75,8 @@ import { phoenixMobileDownloadUrl, phoenixMobileMessages, PHOENIX_ANDROID_SHARE 
 import { PhoenixDesktopPet } from './phoenix-desktop-pet.ts'
 import { PHOENIX_PLUGIN_SEEDS, PHOENIX_PLUGINS_SEED, seedPhoenixPlugin } from './phoenix-remote.ts'
 
+const phoenixDesktop = process.env.DSH_CLIENT_BRAND === 'phoenix'
+
 // A packaged Phoenix build owns its own Harness home. Electron already gives
 // the renamed bundle a distinct userData directory; keep Host data separate too.
 if (app.isPackaged && app.getName() === 'Phoenix AI') {
@@ -102,6 +104,7 @@ const rendererConsole = new RendererConsoleTail()
 // Platform-conventional logs directory (macOS ~/Library/Logs/<name>, otherwise under userData);
 // set before ready so the first fatal report already resolves under it.
 app.setAppLogsPath()
+if (app.isPackaged && phoenixDesktop && process.platform === 'win32') app.setAppUserModelId('ai.phoenix.desktop')
 
 function currentDesktopLocale(): ReturnType<typeof resolveDesktopLocale> {
   return resolveDesktopLocale(windowsLanguage ?? app.getLocale())
@@ -269,6 +272,11 @@ function platformLoginUrl(authorizeUrl: string): string {
   return url.href
 }
 
+function desktopApplicationIconPath(): string {
+  return app.isPackaged ? join(process.resourcesPath, 'icon.png')
+    : join(app.getAppPath(), 'resources', phoenixDesktop ? 'phoenix-icon.png' : 'icon-windows.png')
+}
+
 function createWindow(preload: string, show = false, primary = false): BrowserWindow {
   const window = new BrowserWindow({
     width: 1280,
@@ -276,6 +284,10 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     minWidth: 520,
     minHeight: 600,
     show,
+    ...(process.platform === 'win32' && phoenixDesktop ? {
+      title: 'Phoenix AI',
+      icon: desktopApplicationIconPath(),
+    } : {}),
     ...(process.platform === 'win32' && primary ? {
       titleBarStyle: 'hidden' as const,
       titleBarOverlay: { height: WINDOWS_TITLEBAR_HEIGHT, color: chromeFallbackFill(),
@@ -1188,15 +1200,13 @@ async function main(): Promise<void> {
     updates.dispose()
   })
 
-  const applicationIconPath = development ? join(app.getAppPath(), 'resources', 'icon-windows.png')
-    : join(process.resourcesPath, 'icon.png')
   app.setAboutPanelOptions({
-    applicationName: 'DeepSeek Harness',
+    applicationName: locale.messages.aboutProduct,
     applicationVersion: app.getVersion(),
     // The release has no separate build number; omit Electron's bundle version.
     version: '',
     copyright: '',
-    iconPath: applicationIconPath,
+    iconPath: desktopApplicationIconPath(),
   })
   // A custom application menu replaces Electron's default menu, so macOS needs
   // its standard menus and application hide commands declared explicitly.
@@ -1309,7 +1319,8 @@ async function main(): Promise<void> {
     tray?.relabel()
   }
   refreshApplicationMenu()
-  const trayIconPath = development ? join(app.getAppPath(), 'resources', 'tray-windows.ico') : join(process.resourcesPath, 'tray.ico')
+  const trayIconPath = development ? join(app.getAppPath(), 'resources', phoenixDesktop ? 'phoenix-tray.ico' : 'tray-windows.ico')
+    : join(process.resourcesPath, 'tray.ico')
   if (process.platform === 'win32') {
     // The tray is the way back to a hidden window; without it, relaunching the application still focuses it.
     try {

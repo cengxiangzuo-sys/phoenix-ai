@@ -1,6 +1,6 @@
 <# Compile the x86 DWM helper and raster assets embedded in the NSIS installer. #>
 [CmdletBinding()]
-param([string]$OutputDirectory, [switch]$TestProgress, [switch]$CompileProgressOnly)
+param([string]$OutputDirectory, [switch]$TestProgress, [switch]$CompileProgressOnly, [string]$PhoenixIconPath)
 $ErrorActionPreference = 'Stop'
 $installerRoot = Join-Path $PSScriptRoot '../installer'
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $PSScriptRoot '../.desktop-build/targets/win-x64/installer-ui' }
@@ -68,6 +68,28 @@ if ($TestProgress -or $CompileProgressOnly) {
     }
 }
 Add-Type -AssemblyName System.Drawing
+function Draw-PhoenixInstallerBrand([Drawing.Graphics]$Graphics, [int]$Width, [int]$Height, [string]$Asset) {
+    $icon = [Drawing.Image]::FromFile($PhoenixIconPath)
+    try {
+        $Graphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $edge = if ($Asset -eq 'uninstaller-sidebar') { 120 } else { [int]($Height * 0.61) }
+        $top = if ($Asset -eq 'uninstaller-sidebar') { 89 } else { [int]($Height * 0.08) }
+        $Graphics.DrawImage($icon, [int](($Width - $edge) / 2), $top, $edge, $edge)
+        if ($Asset -ne 'uninstaller-sidebar') {
+            $color = if ($Asset -like '*dark*') { [Drawing.Color]::WhiteSmoke } else { [Drawing.Color]::FromArgb(42, 24, 16) }
+            $brush = [Drawing.SolidBrush]::new($color)
+            $font = [Drawing.Font]::new('Segoe UI', [single]($Height * 0.15), [Drawing.FontStyle]::Bold, [Drawing.GraphicsUnit]::Pixel)
+            $layout = [Drawing.StringFormat]::new()
+            try {
+                $layout.Alignment = [Drawing.StringAlignment]::Center
+                $bounds = [Drawing.RectangleF]::new(0, [single]($Height * 0.76), $Width, [single]($Height * 0.24))
+                $Graphics.TextRenderingHint = [Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+                $Graphics.DrawString('Phoenix AI', $font, $brush, $bounds, $layout)
+            } finally { $layout.Dispose(); $font.Dispose(); $brush.Dispose() }
+        }
+    } finally { $icon.Dispose() }
+}
+
 foreach ($asset in @('brand', 'brand-2x', 'brand-dark', 'brand-dark-2x', 'uninstaller-sidebar')) {
     $image = [Drawing.Image]::FromFile((Join-Path $installerRoot "assets/$asset.png"))
     try {
@@ -77,7 +99,11 @@ foreach ($asset in @('brand', 'brand-2x', 'brand-dark', 'brand-dark-2x', 'uninst
             try {
                 $background = if ($asset -like '*dark*') { [Drawing.Color]::FromArgb(21, 21, 23) } else { [Drawing.Color]::White }
                 $graphics.Clear($background)
-                $graphics.DrawImage($image, 0, 0, $image.Width, $image.Height)
+                if ($PhoenixIconPath) {
+                    Draw-PhoenixInstallerBrand $graphics $image.Width $image.Height $asset
+                } else {
+                    $graphics.DrawImage($image, 0, 0, $image.Width, $image.Height)
+                }
             } finally { $graphics.Dispose() }
             $bitmap.Save((Join-Path $output "$asset.bmp"), [Drawing.Imaging.ImageFormat]::Bmp)
         } finally { $bitmap.Dispose() }

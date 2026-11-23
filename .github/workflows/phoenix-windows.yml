@@ -32,7 +32,7 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
       - name: Check packaging configuration
-        run: pnpm exec vitest run apps/desktop/tests/desktop-package-environment.spec.ts apps/desktop/tests/windows-package-preset.spec.ts
+        run: pnpm exec vitest run apps/desktop/tests/desktop-package-environment.spec.ts apps/desktop/tests/windows-package-preset.spec.ts apps/desktop/tests/installer-packaging.spec.ts
       - name: Build unsigned Phoenix installer
         run: pnpm --dir apps/desktop run package:win:x64:unsigned
       - name: Verify silent installation on Windows
@@ -43,7 +43,22 @@ jobs:
           $installer = Start-Process -FilePath $installers[0].FullName -ArgumentList "/S /D=$target" -PassThru
           if (-not $installer.WaitForExit(180000)) { throw 'Phoenix installation timed out' }
           if ($installer.ExitCode -ne 0) { throw "Phoenix installation returned $($installer.ExitCode)" }
-          if (-not (Test-Path (Join-Path $target 'Phoenix AI.exe'))) { throw 'Installed executable missing' }
+          $exe = Join-Path $target 'Phoenix AI.exe'
+          if (-not (Test-Path $exe)) { throw 'Installed executable missing' }
+          foreach ($path in @($exe, $installers[0].FullName)) {
+            $product = (Get-Item -LiteralPath $path).VersionInfo
+            if ($product.ProductName -ne 'Phoenix AI' -or $product.FileDescription -ne 'Phoenix AI') {
+              throw "Incorrect Windows product metadata in $path"
+            }
+          }
+          $installedTray = Get-FileHash (Join-Path $target 'resources/tray.ico')
+          $phoenixTray = Get-FileHash 'apps/desktop/resources/phoenix-tray.ico'
+          if ($installedTray.Hash -ne $phoenixTray.Hash) { throw 'Installed tray icon is not the Phoenix artwork' }
+          $startMenu = [Environment]::GetFolderPath('Programs')
+          $shortcut = Get-ChildItem -LiteralPath $startMenu -Recurse -Filter 'Phoenix AI.lnk' -File | Select-Object -First 1
+          if (-not $shortcut) { throw 'Phoenix AI Start menu shortcut missing' }
+          $shell = New-Object -ComObject WScript.Shell
+          if ($shell.CreateShortcut($shortcut.FullName).TargetPath -ne $exe) { throw 'Phoenix AI shortcut target is incorrect' }
           if (-not (Test-Path (Join-Path $target 'resources/app.asar'))) { throw 'Installed app archive missing' }
           $seeds = @(Get-ChildItem (Join-Path $target 'resources/runtime') -Directory -Filter 'phoenix-plugins-*')
           if ($seeds.Count -ne 1) { throw 'Installed plugin seed missing' }

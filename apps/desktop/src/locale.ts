@@ -1540,11 +1540,15 @@ export interface DesktopLocale {
 /** Resolve Electron's locale to one shipped Desktop dictionary. */
 export function resolveDesktopLocale(locale: string): DesktopLocale {
   const primary = locale.toLowerCase().split('-')[0]
-  if (primary !== undefined && Object.hasOwn(dictionaries, primary)) {
-    const id = primary as keyof typeof dictionaries
-    return { id: id === 'zh' ? 'zh-CN' : id, messages: dictionaries[id] }
+  const language = primary !== undefined && Object.hasOwn(dictionaries, primary) ? primary as keyof typeof dictionaries : 'en'
+  const id = language === 'zh' ? 'zh-CN' : language
+  const messages = dictionaries[language]
+  if (process.env.DSH_CLIENT_BRAND !== 'phoenix') return { id, messages }
+  const branded: { -readonly [Key in keyof DesktopMessages]: string } = { ...messages }
+  for (const key of Object.keys(branded) as (keyof DesktopMessages)[]) {
+    branded[key] = branded[key].replaceAll('DeepSeek Harness', 'Phoenix AI')
   }
-  return { id: 'en', messages: en }
+  return { id, messages: branded }
 }
 
 /**

@@ -193,6 +193,7 @@ const harness = await vi.hoisted(async () => {
     getPreferredSystemLanguages: () => ['en-US'],
     getVersion: () => '1.0.0',
     getName: () => 'DeepSeek Harness',
+    setAppUserModelId: vi.fn(),
     getAppPath: (): string => 'desktop-test-app',
     setAppLogsPath: vi.fn(),
     getPath: vi.fn<(name: string) => string>(),
@@ -1698,6 +1699,16 @@ describe('desktop main startup', () => {
     host.exited.resolve()
     await harness.quitCompleted.promise
     expect(harness.trays[0]!.destroy).toHaveBeenCalledOnce()
+  })
+
+  it('uses the Phoenix name in the Windows tray, window and native About panel', async () => {
+    vi.stubGlobal('process', { ...process, platform: 'win32', resourcesPath: 'desktop-test-resources' })
+    vi.stubEnv('DSH_CLIENT_BRAND', 'phoenix')
+    await readyWorkspace()
+    expect(harness.app.setAppUserModelId).toHaveBeenCalledWith('ai.phoenix.desktop')
+    expect(harness.app.setAboutPanelOptions).toHaveBeenCalledWith(expect.objectContaining({ applicationName: 'Phoenix AI' }))
+    expect(harness.trays[0]!.setToolTip).toHaveBeenCalledWith('Phoenix AI')
+    expect(harness.trays[0]!.image).toEqual({ path: join('desktop-test-resources', 'tray.ico') })
   })
 
   it('routes closing through the tray confirmation and keeps the Host running', async () => {

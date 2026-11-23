@@ -102,6 +102,27 @@ describe('installer preparation preserves application dependencies', () => {
     expect(config.artifactName).toBe('deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}')
   })
 
+  it('uses Phoenix branding for the Windows executable, tray, and installer', async () => {
+    execute.mockClear()
+    write.mockClear()
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_CLIENT_BRAND: 'phoenix',
+      DSH_DESKTOP_APP_ID: 'ai.phoenix.desktop',
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_TARGET_ARCH: 'x64',
+      DSH_DESKTOP_UNSIGNED: '1',
+    }, 'win32', 'x64')
+    expect(config.productName).toBe('Phoenix AI')
+    expect(config.extraMetadata).toMatchObject({ description: 'Phoenix AI', author: { name: 'Phoenix AI' } })
+    expect(config.win.icon).toMatch(/phoenix-icon\.png$/u)
+    expect(config.extraResources.find(resource => resource.to === 'tray.ico')?.from).toMatch(/phoenix-tray\.ico$/u)
+    await config.beforeBuild()
+    expect(execute).toHaveBeenCalledWith('powershell.exe', expect.arrayContaining(['-PhoenixIconPath', config.win.icon]), expect.any(Object))
+    expect(write).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('无法启动 Phoenix AI'), 'utf8')
+    expect(write).not.toHaveBeenCalledWith(expect.any(String), expect.stringContaining('DeepSeek Harness'), 'utf8')
+  })
+
   it('packages every preload entry point the shell loads', async () => {
     const { readdirSync, readFileSync } = await import('node:fs')
     const sourceDirectory = new URL('../src/', import.meta.url)

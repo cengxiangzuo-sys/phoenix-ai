@@ -1,5 +1,5 @@
 /**
- * Render the Windows tray icon with an enlarged whale from `resources/icon-windows.svg`.
+ * Render the Windows tray icon for Harness or Phoenix (`--phoenix`).
  *
  * The tray shows the icon at 16 logical pixels, so Windows picks one of the
  * bundled bitmaps by display scale. Each size is rasterized from the vector
@@ -115,9 +115,17 @@ function pngDimensions(png: Buffer): { width: number; height: number } {
 }
 
 async function main(): Promise<void> {
-  const entries = await renderTrayIconEntries(await readFile(TRAY_ICON_PATHS.source))
-  await writeFile(TRAY_ICON_PATHS.output, packIco(entries))
-  console.info(`tray icon: wrote ${TRAY_ICON_PATHS.output} with ${entries.map(entry => String(entry.size)).join(', ')} px bitmaps`)
+  const phoenix = process.argv.includes('--phoenix')
+  const image = phoenix ? await readFile(new URL('../resources/phoenix-icon.svg', import.meta.url)) : undefined
+  const output = phoenix ? fileURLToPath(new URL('../resources/phoenix-tray.ico', import.meta.url)) : TRAY_ICON_PATHS.output
+  const entries = image === undefined
+    ? await renderTrayIconEntries(await readFile(TRAY_ICON_PATHS.source))
+    : await Promise.all(TRAY_ICON_SIZES.map(async size => ({
+      size,
+      png: await sharp(image, { density: SOURCE_DENSITY * size / SOURCE_EDGE }).resize(size, size).png().toBuffer(),
+    })))
+  await writeFile(output, packIco(entries))
+  console.info(`tray icon: wrote ${output} with ${entries.map(entry => String(entry.size)).join(', ')} px bitmaps`)
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) await main()

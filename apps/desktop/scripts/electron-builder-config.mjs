@@ -53,6 +53,8 @@ export function createElectronBuilderConfig(
 ) {
   const appId = resolveDesktopAppId(env)
   const phoenix = env.DSH_CLIENT_BRAND === 'phoenix'
+  const productName = phoenix ? 'Phoenix AI' : 'DeepSeek Harness'
+  const applicationIcon = fileURLToPath(new URL(phoenix ? '../resources/phoenix-icon.png' : '../resources/icon-windows.png', import.meta.url))
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -109,15 +111,16 @@ export function createElectronBuilderConfig(
   const packaged = resolveDesktopBuildCommit(env)
   return {
     appId,
-    protocols: [{ name: phoenix ? 'Phoenix AI' : 'DeepSeek Harness', schemes: [phoenix ? 'phoenix-ai' : 'dsh'] }],
+    protocols: [{ name: productName, schemes: [phoenix ? 'phoenix-ai' : 'dsh'] }],
     extraMetadata: {
+      ...(phoenix && packagesWindows ? { description: productName, author: { name: productName } } : {}),
       dshDesktopAppId: appId,
       dshDesktopUpdateChannel: update?.channel ?? 'nightly',
       ...(policy === undefined ? {} : { dshMandatoryUpdatePolicy: policy }),
       ...buildVersion === productVersion ? {} : { version: buildVersion },
       ...packaged === undefined ? {} : { dshBuildCommit: packaged.commit, dshBuildDirty: packaged.dirty },
     },
-    productName: phoenix ? 'Phoenix AI' : 'DeepSeek Harness',
+    productName,
     // The default copyright uses author.name; this line names the product instead.
     copyright: `Copyright © ${new Date().getFullYear()} \${productName}`,
     // Unsigned builds carry their own suffix so a shared file can never pass for a release artifact.
@@ -130,10 +133,11 @@ export function createElectronBuilderConfig(
       if (resolvedPlatform !== 'win32') return true
       await promisify(execFile)('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
         fileURLToPath(new URL('./prepare-windows-installer.ps1', import.meta.url)),
-        '-OutputDirectory', join(buildPaths.root, 'installer-ui')], {
+        '-OutputDirectory', join(buildPaths.root, 'installer-ui'),
+        ...(phoenix ? ['-PhoenixIconPath', applicationIcon] : [])], {
         env: scrubWindowsSigningEnvironment(env), windowsHide: true,
       })
-      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(readInstallerLocales()), 'utf8')
+      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(readInstallerLocales(), productName), 'utf8')
       if (windowsSigner !== undefined) {
         await windowsSigner({ path: join(buildPaths.root, 'installer-ui', 'window-frame.dll'), hash: 'sha256', isNest: false })
       }
@@ -161,9 +165,9 @@ export function createElectronBuilderConfig(
     asarUnpack: unpack,
     extraResources: [
       { from: buildPaths.runtime, to: 'runtime' },
-      { from: fileURLToPath(new URL(phoenix ? '../resources/phoenix-icon.png' : '../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
+      { from: applicationIcon, to: 'icon.png' },
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
-      ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
+      ...(packagesWindows ? [{ from: fileURLToPath(new URL(phoenix ? '../resources/phoenix-tray.ico' : '../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
     ],
     mac: {
       icon: fileURLToPath(new URL(phoenix ? '../resources/phoenix-icon.png' : '../resources/icon-macos.png', import.meta.url)),
@@ -247,7 +251,7 @@ export function createElectronBuilderConfig(
       )
     },
     win: {
-      icon: fileURLToPath(new URL(phoenix ? '../resources/phoenix-icon.png' : '../resources/icon-windows.png', import.meta.url)),
+      icon: applicationIcon,
       forceCodeSigning: !unsigned,
       signtoolOptions: {
         sign: windowsSigner,
