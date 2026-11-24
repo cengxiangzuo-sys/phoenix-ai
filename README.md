@@ -6,7 +6,7 @@ Phoenix AI 是一个开源桌面工作台。你可以在普通会话里处理个
 
 桌面运行时基于 DeepSeek Harness，员工协作基于 DS Bot，Android 客户端基于 DSH Go。各项目的分工见下方技术特点与上游项目。
 
-[下载 Windows x64 预发布版](https://github.com/cengxiangzuo-sys/phoenix-ai/releases/tag/phoenix-windows-8d862b84) · [下载 macOS Apple Silicon 预发布版](https://github.com/cengxiangzuo-sys/phoenix-ai/releases/tag/phoenix-macos-f009fbae) · [反馈问题](https://github.com/cengxiangzuo-sys/phoenix-ai/issues)
+[下载 Windows x64 预发布版](https://github.com/cengxiangzuo-sys/phoenix-ai/releases/tag/phoenix-windows-bfd67e68) · [下载 macOS Apple Silicon 预发布版](https://github.com/cengxiangzuo-sys/phoenix-ai/releases/tag/phoenix-macos-f009fbae) · [反馈问题](https://github.com/cengxiangzuo-sys/phoenix-ai/issues)
 
 ![Phoenix AI 平台实测画面合集。上方为三维办公室，下方为狼人杀协作群和小火人桌宠，余额为测试数据。图末列出技术特点。](assets/phoenix-showcase.png)
 
